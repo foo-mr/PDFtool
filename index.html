@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Organizer Pro - SaaS Edition v3.0</title>
+    <title>PDF Organizer Pro - SaaS Edition v3.1 (Fix)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -86,7 +86,7 @@
                     <h1 class="font-bold text-lg leading-tight">PDF Organizer</h1>
                     <span class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">PRO</span>
                 </div>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">SaaS EDITION v3.0</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">SaaS EDITION v3.1</p>
             </div>
         </div>
 
@@ -665,7 +665,8 @@
             showLoading(true, "正在導出", `正在處理 ${format.toUpperCase()}...`);
             
             try {
-                const { PDFDocument, degrees, PageSizes, StandardFonts, rgb } = PDFLib;
+                // 修正：將 Permission 改為 Permissions (複數)
+                const { PDFDocument, degrees, PageSizes, StandardFonts, rgb, Permissions } = PDFLib; 
                 const srcDoc = await PDFDocument.load(pdfBytes);
 
                 if (format === 'pdf') {
@@ -710,7 +711,11 @@
                         newDoc.encrypt({
                             userPassword: securitySettings.userPassword,
                             ownerPassword: securitySettings.ownerPassword,
-                            permissions: { printing: 'highResolution', modifying: false, copying: false }
+                            permissions: [
+                                Permissions.Print, // 修正：使用 Permissions.Print
+                                Permissions.Copy,  // 修正：使用 Permissions.Copy
+                                Permissions.Accessibility // 修正：使用 Permissions.Accessibility
+                            ]
                         });
                     }
 
