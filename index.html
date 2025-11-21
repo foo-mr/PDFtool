@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF大師 - 三分隔完整增強版 (v3.14 鍵盤縮放版)</title>
+    <title>PDF Organizer Pro - 專業頁面管理工具</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -12,22 +12,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- SortableJS for Drag and Drop -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
     <script>
-        // Configure PDF.js worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#2563eb',
-                        secondary: '#475569',
-                        success: '#10b981',
-                        danger: '#ef4444',
-                        warning: '#f59e0b'
+                        brand: '#4f46e5', // Indigo 600
+                        brandHover: '#4338ca',
+                        surface: '#f8fafc'
                     }
                 }
             }
@@ -35,984 +30,696 @@
     </script>
 
     <style>
-        body { font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f1f5f9; }
         
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        .page-thumbnail.active { border: 3px solid #2563eb; transform: scale(0.98); }
-        .loader { border-top-color: #3498db; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        /* Grid Item Styles */
+        .page-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .page-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .page-card.selected { ring: 2px solid #4f46e5; background-color: #eef2ff; transform: scale(1.02); z-index: 10; }
+        
+        /* Sortable Styles */
+        .sortable-ghost { opacity: 0.4; background: #e2e8f0; border: 2px dashed #94a3b8; }
+        .sortable-drag { cursor: grabbing; opacity: 1; background: white; transform: scale(1.05) rotate(2deg); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); z-index: 50; }
+
+        /* Loader */
+        .loader { border-top-color: #4f46e5; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .canvas-container { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        
-        .custom-checkbox:checked { background-color: #2563eb; border-color: #2563eb; }
-
-        /* Grid Editor Styles */
-        .grid-page-item { transition: all 0.15s; }
-        .grid-page-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .grid-page-item.selected { ring: 2px solid #2563eb; background-color: #eff6ff; }
-        .sortable-ghost { opacity: 0.4; background: #e2e8f0; border: 2px dashed #94a3b8; }
-        .sortable-drag { cursor: grabbing; opacity: 1; background: white; transform: scale(1.05); z-index: 50; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        /* Toolbar Animation */
+        .toolbar-enter { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
-<body class="bg-gray-100 h-screen flex flex-col overflow-hidden text-slate-800">
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
 
-    <!-- Top Header -->
-    <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-6 shadow-sm z-10 flex-shrink-0">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 shadow-sm z-20 flex-shrink-0">
         <div class="flex items-center gap-3">
-            <div class="bg-primary text-white p-1.5 rounded-lg">
-                <i class="fa-solid fa-scissors"></i>
+            <div class="bg-brand text-white p-2 rounded-lg shadow-sm">
+                <i class="fa-solid fa-layer-group"></i>
             </div>
-            <h1 class="font-bold text-lg text-slate-700">PDF大師 <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-200 px-2 py-0.5 rounded">v3.14 鍵盤縮放版</span></h1>
+            <div>
+                <h1 class="font-bold text-lg text-slate-800 leading-tight">PDF Organizer Pro</h1>
+                <p class="text-[10px] text-slate-500 font-medium tracking-wide">SECURE CLIENT-SIDE PROCESSING</p>
+            </div>
         </div>
+
         <div class="flex items-center gap-4">
-            <div class="text-xs text-gray-500 hidden md:block">
-                <i class="fa-solid fa-shield-halved mr-1 text-success"></i> 本地安全處理 | 無需上傳
+            <div id="fileInfo" class="hidden items-center gap-3 px-4 py-1.5 bg-slate-50 rounded-full border border-slate-200 text-sm">
+                <i class="fa-regular fa-file-pdf text-red-500"></i>
+                <span id="fileNameDisplay" class="font-medium text-slate-700 truncate max-w-[200px]">filename.pdf</span>
+                <span id="pageCountDisplay" class="text-slate-400 text-xs border-l border-slate-200 pl-3">0 頁</span>
             </div>
-            <button onclick="document.getElementById('fileInput').click()" class="bg-primary hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-sm transition flex items-center gap-2 shadow-sm">
-                <i class="fa-solid fa-folder-open"></i> 開啟 PDF
+
+            <button onclick="document.getElementById('fileInput').click()" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2">
+                <i class="fa-solid fa-folder-open text-brand"></i> 開啟文件
             </button>
             <input type="file" id="fileInput" accept=".pdf" class="hidden" onchange="handleFileUpload(event)">
+
+            <div class="h-8 w-px bg-slate-200 mx-2"></div>
+
+            <div class="relative group">
+                <button id="exportBtn" disabled class="bg-brand hover:bg-brandHover disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-md shadow-indigo-500/20 flex items-center gap-2">
+                    <span>匯出檔案</span>
+                    <i class="fa-solid fa-chevron-down text-xs opacity-80"></i>
+                </button>
+                <!-- Dropdown Menu -->
+                <div class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
+                    <div class="p-1">
+                        <button onclick="exportFile('pdf')" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-3">
+                            <i class="fa-solid fa-file-pdf text-red-500 text-lg w-6"></i>
+                            <div>
+                                <div class="font-medium">PDF 文件</div>
+                                <div class="text-xs text-slate-400">合併所有頁面</div>
+                            </div>
+                        </button>
+                        <button onclick="exportFile('zip')" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-3">
+                            <i class="fa-solid fa-file-zipper text-yellow-500 text-lg w-6"></i>
+                            <div>
+                                <div class="font-medium">獨立 PDF (ZIP)</div>
+                                <div class="text-xs text-slate-400">每頁存為單獨檔案</div>
+                            </div>
+                        </button>
+                        <button onclick="exportFile('images')" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-3">
+                            <i class="fa-regular fa-image text-blue-500 text-lg w-6"></i>
+                            <div>
+                                <div class="font-medium">圖片序列 (JPG)</div>
+                                <div class="text-xs text-slate-400">高解析度圖片</div>
+                            </div>
+                        </button>
+                        <button onclick="exportFile('text')" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-3">
+                            <i class="fa-solid fa-align-left text-slate-500 text-lg w-6"></i>
+                            <div>
+                                <div class="font-medium">純文字 (TXT)</div>
+                                <div class="text-xs text-slate-400">提取頁面內容</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-    </header>
+    </nav>
 
-    <!-- Main Layout -->
-    <main class="flex-1 flex overflow-hidden relative">
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-surface" onclick="handleBackgroundClick(event)">
         
-        <!-- Pane 1: Left Sidebar -->
-        <aside class="w-64 bg-gray-50 border-r border-gray-200 flex flex-col flex-shrink-0 transition-all duration-300" id="leftPanel">
-            <div class="p-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                <span class="font-medium text-sm text-gray-600">頁面導覽</span>
-                <span id="pageCountBadge" class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">0 頁</span>
-            </div>
-            <div id="thumbnailContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
-                <div class="text-center text-gray-400 mt-10 text-sm">
-                    <i class="fa-regular fa-file-pdf text-4xl mb-3 opacity-50"></i>
-                    <p>請開啟 PDF 文件</p>
+        <!-- Empty State -->
+        <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-0">
+            <div class="bg-white p-10 rounded-3xl shadow-sm border border-slate-200 text-center max-w-md mx-6 transition hover:shadow-md">
+                <div class="w-20 h-20 bg-indigo-50 text-brand rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-inner">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-3">拖放或開啟 PDF</h2>
+                <p class="text-slate-500 mb-8 leading-relaxed">開始整理您的文件。支援重新排序、旋轉、刪除頁面以及插入空白頁。</p>
+                <button onclick="document.getElementById('fileInput').click()" class="bg-brand hover:bg-brandHover text-white px-8 py-3 rounded-xl font-medium shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5">
+                    選擇檔案
+                </button>
+                <div class="mt-6 flex justify-center gap-6 text-xs text-slate-400 font-medium">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-lock"></i> 本地加密</span>
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-bolt"></i> 極速處理</span>
                 </div>
             </div>
-        </aside>
+        </div>
 
-        <!-- Pane 2: Center (Multi-View) -->
-        <section class="flex-1 bg-gray-200 relative flex flex-col min-w-0">
+        <!-- Controls Bar (Top) -->
+        <div id="topBar" class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 hidden opacity-0 transition-opacity duration-300 z-10">
+            <div class="flex items-center gap-4 text-sm">
+                <button onclick="selectAll()" class="text-slate-600 hover:text-brand font-medium transition">全選</button>
+                <span class="text-slate-300">|</span>
+                <button onclick="deselectAll()" class="text-slate-600 hover:text-brand font-medium transition">取消選取</button>
+                <span class="bg-indigo-50 text-brand px-2 py-0.5 rounded text-xs font-bold ml-2" id="selectionBadge">0 選取</span>
+            </div>
             
-            <!-- Toolbar -->
-            <div class="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-10 flex-shrink-0">
-                <!-- View Toggle -->
-                <div class="flex gap-1 bg-gray-100 p-0.5 rounded">
-                    <button onclick="switchView('preview')" id="btnViewPreview" class="px-3 py-1 text-xs font-medium rounded shadow-sm bg-white text-gray-800 transition">預覽模式</button>
-                    <button onclick="switchView('grid')" id="btnViewGrid" class="px-3 py-1 text-xs font-medium rounded text-gray-500 hover:text-gray-800 transition">網格編輯</button>
-                </div>
-
-                <!-- Preview Controls -->
-                <div id="previewControls" class="flex items-center gap-4">
-                    <button onclick="changePage(-1)" class="text-gray-600 hover:text-primary disabled:opacity-30 transition" id="prevPageBtn" disabled>
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    <span class="text-sm font-medium text-gray-700 w-24 text-center" id="pageIndicator">-- / --</span>
-                    <button onclick="changePage(1)" class="text-gray-600 hover:text-primary disabled:opacity-30 transition" id="nextPageBtn" disabled>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                    <div class="h-4 w-px bg-gray-300 mx-2"></div>
-                    <button onclick="zoom(-0.2)" class="text-gray-500 hover:text-gray-800"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-                    <button onclick="zoom(0.2)" class="text-gray-500 hover:text-gray-800"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-                </div>
-
-                <!-- Grid Controls (Hidden by default) -->
-                <div id="gridControls" class="hidden flex items-center gap-4 text-xs">
-                    <div class="flex items-center gap-2 mr-2 border-r border-gray-200 pr-4">
-                        <span class="text-gray-500"><i class="fa-solid fa-compress text-gray-400 mr-1"></i></span>
-                        <input type="range" min="100" max="400" value="160" id="gridZoomSlider" class="w-24 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateGridZoom(this.value)">
-                        <span class="text-gray-500"><i class="fa-solid fa-expand text-gray-400 ml-1"></i></span>
-                    </div>
-                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium" id="selectedCountBadge">已選 0</span>
-                </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-slate-400 mr-2"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="range" min="100" max="350" value="180" class="w-32 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand" oninput="updateZoom(this.value)">
             </div>
+        </div>
 
-            <!-- View 1: Single Page Canvas -->
-            <div id="mainViewer" class="flex-1 overflow-auto flex justify-center p-8 relative">
-                <div id="canvasWrapper" class="relative transition-transform duration-200 ease-out origin-top">
-                    <canvas id="the-canvas" class="canvas-container bg-white"></canvas>
-                    <div id="loadingOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center z-20 hidden">
-                        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
-                    </div>
-                </div>
-                
-                <!-- Welcome State -->
-                <div id="welcomeState" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 z-0 pointer-events-none">
-                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 text-center max-w-md mx-4">
-                        <div class="w-16 h-16 bg-blue-50 text-primary rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-700 mb-2">準備開始</h3>
-                        <p class="text-sm mb-4">支援 PDF 分割、提取、重組。所有操作均在您的設備上完成。</p>
-                    </div>
-                </div>
+        <!-- Grid Container -->
+        <div id="gridWrapper" class="flex-1 overflow-y-auto p-8 hidden scroll-smooth">
+            <div id="gridContainer" class="grid gap-6 pb-32 transition-all duration-300 mx-auto" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+                <!-- Pages injected here -->
             </div>
+        </div>
 
-            <!-- View 2: Grid Editor -->
-            <div id="gridEditor" class="hidden flex-1 overflow-y-auto p-6 bg-gray-200" onclick="handleGridBackgroundClick(event)">
-                <!-- Dynamic Grid Columns via JS -->
-                <div id="gridContainer" class="grid gap-4 pb-20" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
-                    <!-- Grid items injected here -->
-                </div>
-                <div id="emptyGridMsg" class="hidden h-full flex flex-col items-center justify-center text-gray-400">
-                    <i class="fa-solid fa-folder-open text-4xl mb-2 opacity-50"></i>
-                    <p>沒有頁面</p>
-                </div>
-            </div>
-
-        </section>
-
-        <!-- Pane 3: Right Sidebar -->
-        <aside class="w-80 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 shadow-lg z-20" id="rightPanel">
-            <!-- Tabs -->
-            <div class="flex border-b border-gray-200">
-                <button onclick="switchTab('split')" id="tabSplit" class="flex-1 py-3 text-sm font-medium text-primary border-b-2 border-primary bg-blue-50 transition">
-                    <i class="fa-solid fa-layer-group mr-1"></i> 分割提取
+        <!-- Floating Action Bar (Bottom) -->
+        <div id="floatingToolbar" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-2 py-2 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-1 z-30 hidden toolbar-enter">
+            
+            <div class="flex items-center gap-1 px-2 border-r border-white/20">
+                <button onclick="rotateSelected(-90)" class="p-2.5 hover:bg-white/20 rounded-xl transition tooltip-trigger relative group" title="向左旋轉">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">向左旋轉</span>
                 </button>
-                <button onclick="switchTab('organize')" id="tabOrganize" class="flex-1 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-primary transition">
-                    <i class="fa-solid fa-border-all mr-1"></i> 頁面管理
+                <button onclick="rotateSelected(90)" class="p-2.5 hover:bg-white/20 rounded-xl transition group relative" title="向右旋轉">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">向右旋轉</span>
                 </button>
             </div>
 
-            <div class="flex-1 overflow-hidden relative">
-                
-                <!-- Tab Content: Split & Extract -->
-                <div id="contentSplit" class="absolute inset-0 overflow-y-auto p-5 space-y-6 flex flex-col">
-                    <!-- Range Selection -->
-                    <div class="space-y-3">
-                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">手動範圍設定</h3>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="text-xs text-gray-500 mb-1 block">起始頁</label>
-                                <input type="number" id="startPage" min="1" class="w-full border border-gray-300 rounded p-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
-                            </div>
-                            <div>
-                                <label class="text-xs text-gray-500 mb-1 block">結束頁</label>
-                                <input type="number" id="endPage" min="1" class="w-full border border-gray-300 rounded p-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
-                            </div>
-                        </div>
-                        <button onclick="addRange()" class="w-full bg-secondary hover:bg-slate-600 text-white py-2 rounded text-sm transition">
-                            <i class="fa-solid fa-plus mr-1"></i> 加入提取清單
-                        </button>
-                    </div>
-
-                    <hr class="border-gray-100">
-
-                    <!-- Range List -->
-                    <div class="flex-1 min-h-[150px] flex flex-col">
-                        <div class="flex justify-between items-end mb-2">
-                            <h3 class="text-sm font-bold text-gray-700">待處理清單</h3>
-                            <div class="flex gap-2">
-                                <button id="mergeBtn" onclick="openMergePreview()" disabled class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1">
-                                    <i class="fa-solid fa-link"></i> 合併選取
-                                </button>
-                                <button onclick="clearRanges()" class="text-xs text-red-500 hover:text-red-700 px-1 py-1">清空</button>
-                            </div>
-                        </div>
-                        <div id="rangeList" class="space-y-2 flex-1 overflow-y-auto">
-                            <div class="text-center text-gray-400 text-xs py-8 border-2 border-dashed border-gray-200 rounded">尚未加入任何範圍</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tab Content: Organize Pages -->
-                <div id="contentOrganize" class="absolute inset-0 overflow-y-auto p-5 space-y-6 hidden bg-gray-50">
-                    <div class="text-center mb-4">
-                        <div class="w-12 h-12 bg-orange-100 text-warning rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
-                            <i class="fa-solid fa-sort"></i>
-                        </div>
-                        <h3 class="text-gray-800 font-bold">頁面重組工具</h3>
-                        <p class="text-xs text-gray-500 mt-1">
-                            <span class="border border-gray-300 rounded px-1">Ctrl+C</span> 複製
-                            <span class="border border-gray-300 rounded px-1 ml-1">Delete</span> 刪除
-                        </p>
-                    </div>
-
-                    <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm space-y-3">
-                        <h4 class="text-xs font-bold text-gray-400 uppercase">選取操作</h4>
-                        
-                        <button onclick="copySelectedPages()" class="w-full flex items-center justify-between bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded text-sm transition group">
-                            <span><i class="fa-regular fa-copy mr-2 text-blue-500"></i>複製選取頁面</span>
-                            <span class="text-xs bg-gray-100 text-gray-500 px-1.5 rounded group-hover:bg-gray-200" id="copyCountBadge">0</span>
-                        </button>
-
-                        <button onclick="pastePages()" class="w-full flex items-center justify-between bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded text-sm transition disabled:opacity-50" id="btnPaste" disabled>
-                            <span><i class="fa-regular fa-paste mr-2 text-green-500"></i>貼上頁面</span>
-                            <span class="text-xs bg-gray-100 text-gray-500 px-1.5 rounded" id="clipboardBadge">0</span>
-                        </button>
-
-                        <button onclick="deleteSelectedPages()" class="w-full flex items-center justify-between bg-white border border-red-200 hover:bg-red-50 text-red-600 px-3 py-2 rounded text-sm transition">
-                            <span><i class="fa-solid fa-trash mr-2"></i>刪除選取頁面</span>
-                        </button>
-                    </div>
-
-                    <button onclick="resetPageOrder()" class="w-full text-xs text-gray-400 hover:text-gray-600 underline mt-4">
-                        重置為原始順序
-                    </button>
-                </div>
-
-            </div>
-
-            <!-- Footer Actions -->
-            <div class="p-4 border-t border-gray-200 bg-gray-50 space-y-3 z-20 relative">
-                <div>
-                    <label class="text-xs text-gray-500 mb-1 block">輸出格式</label>
-                    <select id="outputFormat" class="w-full border border-gray-300 rounded p-2 text-sm bg-white focus:border-primary outline-none">
-                        <option value="pdf_split">獨立 PDF 文件 (ZIP)</option>
-                        <option value="pdf_merge">合併為一個新 PDF</option>
-                        <option value="images">圖片序列 (JPG/ZIP)</option>
-                        <option value="text">純文字提取 (TXT)</option>
-                    </select>
-                </div>
-                <button id="processBtn" onclick="processAndDownload()" disabled class="w-full bg-primary hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded shadow-lg shadow-blue-500/30 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-download"></i> 開始處理與下載
+            <div class="flex items-center gap-1 px-2 border-r border-white/20">
+                <button onclick="addBlankPage()" class="p-2.5 hover:bg-white/20 rounded-xl transition group relative" title="插入空白頁">
+                    <i class="fa-regular fa-square-plus"></i>
+                    <span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">插入空白頁</span>
+                </button>
+                <button onclick="copySelected()" class="p-2.5 hover:bg-white/20 rounded-xl transition group relative" title="複製">
+                    <i class="fa-regular fa-copy"></i>
+                    <span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">複製</span>
+                </button>
+                <button id="pasteBtn" disabled onclick="pastePages()" class="p-2.5 hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent rounded-xl transition group relative" title="貼上">
+                    <i class="fa-regular fa-paste"></i>
+                    <span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">貼上</span>
                 </button>
             </div>
-        </aside>
+
+            <div class="px-2">
+                <button onclick="deleteSelected()" class="p-2.5 hover:bg-red-500/80 text-red-400 hover:text-white rounded-xl transition group relative" title="刪除">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">刪除頁面</span>
+                </button>
+            </div>
+        </div>
+
     </main>
 
-    <!-- Modals & Overlays -->
-    <div id="progressModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-            <h3 class="font-bold text-lg mb-2 text-gray-800" id="progressTitle">處理中...</h3>
-            <p class="text-sm text-gray-500 mb-4" id="progressDesc">請稍候。</p>
-            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1">
-                <div id="progressBar" class="bg-primary h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-            <div class="text-right text-xs text-gray-500" id="progressText">0%</div>
-        </div>
-    </div>
-    
-    <!-- Merge Preview Modal -->
-    <div id="mergeModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl p-0 w-full max-w-md overflow-hidden">
-            <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
-                <h3 class="font-bold text-lg"><i class="fa-solid fa-object-group mr-2"></i>合併章節預覽</h3>
-                <button onclick="closeMergeModal()" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <div class="p-6 max-h-[60vh] overflow-y-auto">
-                <ul id="mergeListPreview" class="bg-gray-50 rounded border border-gray-200 text-sm text-gray-600 divide-y divide-gray-200 mb-4"></ul>
-                <div class="bg-indigo-50 border border-indigo-100 rounded p-4 text-center">
-                    <p class="text-xs text-indigo-500 font-bold">合併結果</p>
-                    <p class="text-lg font-bold text-indigo-700" id="mergeResultRange">--</p>
-                </div>
-            </div>
-            <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-                <button onclick="closeMergeModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded text-sm">取消</button>
-                <button onclick="confirmMerge()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium">確認合併</button>
-            </div>
-        </div>
+    <!-- Loading Overlay -->
+    <div id="loadingModal" class="fixed inset-0 bg-white/90 z-50 hidden flex flex-col items-center justify-center backdrop-blur-sm">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-12 w-12 mb-4"></div>
+        <h2 class="text-xl font-bold text-slate-800 mb-2" id="loadingTitle">處理中</h2>
+        <p class="text-slate-500 text-sm" id="loadingText">請稍候...</p>
     </div>
 
-    <!-- Toast -->
-    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded shadow-lg opacity-0 pointer-events-none z-50 text-sm transition-opacity duration-300"></div>
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg text-sm opacity-0 transition-opacity duration-300 pointer-events-none z-50 flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-green-400"></i> <span id="toastMsg">Action Completed</span>
+    </div>
 
     <script>
-        // --- Global State ---
+        // --- Application State ---
         let pdfDoc = null;
         let pdfBytes = null;
-        let pageNum = 1;
-        let scale = 1.0;
-        let canvas = document.getElementById('the-canvas');
-        let ctx = canvas.getContext('2d');
         let fileName = "document";
         
-        // Data Models
-        let ranges = []; // {start, end, id}
-        let selectedRangeIds = new Set();
-        
-        // Page Organization State
-        let pageSequence = []; 
-        let selectedPageIds = new Set(); 
-        let clipboardPages = []; 
-        let sortableInstance = null;
-        let gridZoomLevel = 160;
+        // Core Data Model: Array of Page Objects
+        // { id: string, type: 'original'|'blank', originalIndex: number (0-based), rotation: number (0,90,180,270) }
+        let pages = []; 
+        let selectedIds = new Set();
+        let clipboard = []; // Array of Page Objects
+        let sortable = null;
+        let currentZoom = 180;
 
-        // --- Initialization ---
-        function showToast(msg, type = 'info') {
+        // --- UI Logic ---
+
+        function showToast(msg, isError = false) {
             const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.className = `fixed bottom-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded shadow-lg transition-opacity duration-300 z-50 text-sm ${type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-800 text-white'}`;
-            toast.style.opacity = '1';
-            setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+            const icon = toast.querySelector('i');
+            document.getElementById('toastMsg').innerText = msg;
+            
+            toast.className = `fixed bottom-24 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-xl text-sm opacity-100 transition-opacity duration-300 pointer-events-none z-50 flex items-center gap-3 font-medium ${isError ? 'bg-red-600 text-white' : 'bg-slate-800 text-white'}`;
+            icon.className = isError ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check text-green-400';
+            
+            setTimeout(() => { toast.style.opacity = '0'; }, 2500);
         }
 
-        // Keyboard Support
-        document.addEventListener('keydown', (e) => {
-            if (document.getElementById('gridEditor').classList.contains('hidden')) return;
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-            const isCmd = e.ctrlKey || e.metaKey;
-
-            if (isCmd && e.key.toLowerCase() === 'c') {
-                e.preventDefault();
-                copySelectedPages();
-            }
-            if (isCmd && e.key.toLowerCase() === 'v') {
-                e.preventDefault();
-                pastePages();
-            }
-            if (isCmd && e.key.toLowerCase() === 'a') {
-                e.preventDefault();
-                selectAllPages();
-            }
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                e.preventDefault();
-                deleteSelectedPages();
-            }
-        });
-
-        function updateUIState() {
-            const totalPages = pageSequence.length;
-            const hasDoc = !!pdfDoc;
-
-            // Nav Buttons
-            document.getElementById('prevPageBtn').disabled = pageNum <= 1;
-            document.getElementById('nextPageBtn').disabled = !hasDoc || pageNum >= totalPages;
-            document.getElementById('processBtn').disabled = !hasDoc; 
-            
-            // Text Updates
-            if (hasDoc) {
-                document.getElementById('pageIndicator').innerText = `${pageNum} / ${totalPages}`;
-                document.getElementById('pageCountBadge').innerText = `${totalPages} 頁`;
-                document.getElementById('welcomeState').classList.add('hidden');
-                
-                document.getElementById('startPage').max = totalPages;
-                document.getElementById('endPage').max = totalPages;
+        function showLoading(show, title = "處理中", text = "請稍候...") {
+            const modal = document.getElementById('loadingModal');
+            if (show) {
+                document.getElementById('loadingTitle').innerText = title;
+                document.getElementById('loadingText').innerText = text;
+                modal.classList.remove('hidden');
             } else {
-                document.getElementById('pageCountBadge').innerText = `0 頁`;
-            }
-
-            // Merge Button
-            const mergeBtn = document.getElementById('mergeBtn');
-            mergeBtn.disabled = selectedRangeIds.size < 2;
-            mergeBtn.innerHTML = selectedRangeIds.size > 0 
-                ? `<i class="fa-solid fa-link"></i> 合併 (${selectedRangeIds.size})`
-                : `<i class="fa-solid fa-link"></i> 合併選取`;
-
-            // Grid Selection UI
-            document.getElementById('selectedCountBadge').innerText = `已選 ${selectedPageIds.size}`;
-            document.getElementById('copyCountBadge').innerText = selectedPageIds.size;
-            document.getElementById('btnPaste').disabled = clipboardPages.length === 0;
-            document.getElementById('clipboardBadge').innerText = clipboardPages.length;
-            
-            // Empty state for grid
-            if (totalPages === 0 && hasDoc) {
-                document.getElementById('emptyGridMsg').classList.remove('hidden');
-            } else {
-                document.getElementById('emptyGridMsg').classList.add('hidden');
-            }
-        }
-
-        // --- View Switching ---
-        function switchView(mode) {
-            const viewer = document.getElementById('mainViewer');
-            const grid = document.getElementById('gridEditor');
-            const pControls = document.getElementById('previewControls');
-            const gControls = document.getElementById('gridControls');
-            const btnPreview = document.getElementById('btnViewPreview');
-            const btnGrid = document.getElementById('btnViewGrid');
-
-            if (mode === 'preview') {
-                viewer.classList.remove('hidden');
-                grid.classList.add('hidden');
-                pControls.classList.remove('hidden');
-                gControls.classList.add('hidden');
-                btnPreview.className = "px-3 py-1 text-xs font-medium rounded shadow-sm bg-white text-gray-800 transition";
-                btnGrid.className = "px-3 py-1 text-xs font-medium rounded text-gray-500 hover:text-gray-800 transition";
-                if (pageSequence.length > 0) {
-                    // Adjust pageNum if out of bounds due to deletion
-                    if (pageNum > pageSequence.length) pageNum = pageSequence.length;
-                    if (pageNum < 1) pageNum = 1;
-                    renderPage(pageNum);
-                }
-            } else {
-                viewer.classList.add('hidden');
-                grid.classList.remove('hidden');
-                pControls.classList.add('hidden');
-                gControls.classList.remove('hidden');
-                btnPreview.className = "px-3 py-1 text-xs font-medium rounded text-gray-500 hover:text-gray-800 transition";
-                btnGrid.className = "px-3 py-1 text-xs font-medium rounded shadow-sm bg-white text-gray-800 transition";
-                renderGridEditor();
-            }
-        }
-
-        function switchTab(tab) {
-            const contentSplit = document.getElementById('contentSplit');
-            const contentOrganize = document.getElementById('contentOrganize');
-            const tabSplit = document.getElementById('tabSplit');
-            const tabOrganize = document.getElementById('tabOrganize');
-
-            if (tab === 'split') {
-                contentSplit.classList.remove('hidden');
-                contentOrganize.classList.add('hidden');
-                tabSplit.className = "flex-1 py-3 text-sm font-medium text-primary border-b-2 border-primary bg-blue-50 transition";
-                tabOrganize.className = "flex-1 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-primary transition";
-            } else {
-                contentSplit.classList.add('hidden');
-                contentOrganize.classList.remove('hidden');
-                tabSplit.className = "flex-1 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-primary transition";
-                tabOrganize.className = "flex-1 py-3 text-sm font-medium text-primary border-b-2 border-primary bg-blue-50 transition";
-                switchView('grid');
-            }
-        }
-
-        // --- File Handling ---
-        async function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            document.getElementById('progressModal').classList.remove('hidden');
-            updateProgress(10, '正在讀取文件...');
-            fileName = file.name.replace('.pdf', '');
-
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                pdfBytes = arrayBuffer;
-                const loadingTask = pdfjsLib.getDocument(arrayBuffer);
-                pdfDoc = await loadingTask.promise;
-
-                pageSequence = [];
-                for(let i=1; i<=pdfDoc.numPages; i++) {
-                    pageSequence.push({ originalPage: i, id: crypto.randomUUID() });
-                }
-
-                updateProgress(50, '生成預覽...');
-                pageNum = 1;
-                ranges = [];
-                selectedRangeIds.clear();
-                selectedPageIds.clear();
-                clipboardPages = [];
-                
-                renderRangeList();
-                await renderPage(pageNum);
-                await generateThumbnails();
-
-                updateProgress(100, '完成');
-                setTimeout(() => document.getElementById('progressModal').classList.add('hidden'), 500);
-                updateUIState();
-                showToast(`已載入 ${pdfDoc.numPages} 頁`);
-
-            } catch (error) {
-                console.error(error);
-                document.getElementById('progressModal').classList.add('hidden');
-                showToast('無法讀取 PDF', 'error');
-            }
-        }
-
-        // --- Rendering Core ---
-        function getOriginalPageNum(logicalNum) {
-            if (!pageSequence[logicalNum - 1]) return 1;
-            return pageSequence[logicalNum - 1].originalPage;
-        }
-
-        async function renderPage(num) {
-            if(!pdfDoc || num < 1 || num > pageSequence.length) return;
-            
-            const originalNum = getOriginalPageNum(num);
-
-            const page = await pdfDoc.getPage(originalNum);
-            const viewport = page.getViewport({ scale: scale * 1.5 });
-            
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            canvas.style.width = `${viewport.width / 1.5}px`;
-            canvas.style.height = `${viewport.height / 1.5}px`;
-
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            
-            document.querySelectorAll('.page-thumbnail').forEach(el => el.classList.remove('active'));
-            const currentThumb = document.getElementById(`thumb-${num}`);
-            if (currentThumb) {
-                currentThumb.classList.add('active');
-                currentThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-            
-            updateUIState();
-        }
-
-        function changePage(offset) {
-            const newPage = pageNum + offset;
-            if (newPage >= 1 && newPage <= pageSequence.length) {
-                pageNum = newPage;
-                renderPage(pageNum);
-                document.getElementById('startPage').value = pageNum;
-                document.getElementById('endPage').value = pageNum;
-            }
-        }
-
-        function zoom(delta) {
-            scale += delta;
-            if (scale < 0.4) scale = 0.4;
-            if (scale > 3.0) scale = 3.0;
-            renderPage(pageNum);
-        }
-
-        // --- Thumbnails ---
-        async function generateThumbnails() {
-            const container = document.getElementById('thumbnailContainer');
-            container.innerHTML = '';
-            
-            for (let i = 0; i < pageSequence.length; i++) {
-                const logicalNum = i + 1;
-                const originalNum = pageSequence[i].originalPage;
-                
-                const div = document.createElement('div');
-                div.className = 'page-thumbnail bg-white p-1 rounded border border-gray-200 cursor-pointer hover:shadow-md transition relative';
-                div.id = `thumb-${logicalNum}`;
-                div.onclick = () => { pageNum = logicalNum; renderPage(pageNum); };
-                
-                div.innerHTML = `
-                    <div class="h-32 bg-gray-100 mb-1 flex items-center justify-center relative overflow-hidden page-thumb-canvas-wrapper">
-                         <span class="text-xs text-gray-400">Loading...</span>
-                    </div>
-                    <div class="text-center text-xs font-medium text-gray-500 flex justify-between px-1">
-                        <span>Page ${logicalNum}</span>
-                        <span class="text-[10px] text-gray-300">#${originalNum}</span>
-                    </div>
-                `;
-                container.appendChild(div);
-
-                if (i < 10) renderSmallCanvas(originalNum, div.querySelector('.page-thumb-canvas-wrapper'));
-            }
-        }
-
-        async function renderSmallCanvas(originalNum, container) {
-            try {
-                const page = await pdfDoc.getPage(originalNum);
-                const viewport = page.getViewport({ scale: 0.2 });
-                const cvs = document.createElement('canvas');
-                cvs.height = viewport.height;
-                cvs.width = viewport.width;
-                cvs.className = "w-full h-full object-contain";
-                await page.render({ canvasContext: cvs.getContext('2d'), viewport: viewport }).promise;
-                container.innerHTML = '';
-                container.appendChild(cvs);
-            } catch(e) {}
-        }
-
-        // --- GRID EDITOR ---
-        function updateGridZoom(val) {
-            gridZoomLevel = val;
-            document.getElementById('gridContainer').style.gridTemplateColumns = `repeat(auto-fill, minmax(${val}px, 1fr))`;
-        }
-
-        function handleGridBackgroundClick(e) {
-            // If click is on the container background (not on a card), clear selection
-            if (e.target.id === 'gridEditor' || e.target.id === 'gridContainer') {
-                selectedPageIds.clear();
-                renderGridEditor();
-                updateUIState();
-            }
-        }
-
-        function renderGridEditor() {
-            const container = document.getElementById('gridContainer');
-            container.innerHTML = '';
-            container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${gridZoomLevel}px, 1fr))`;
-
-            pageSequence.forEach((pageObj, index) => {
-                const logicalNum = index + 1;
-                const isSelected = selectedPageIds.has(pageObj.id);
-                
-                const div = document.createElement('div');
-                div.className = `grid-page-item bg-white rounded-lg p-2 border cursor-pointer relative group flex flex-col ${isSelected ? 'selected border-blue-500' : 'border-gray-200 hover:border-blue-300'}`;
-                div.dataset.id = pageObj.id;
-                div.onclick = (e) => {
-                    e.stopPropagation(); // Prevent bubbling to container
-                    toggleGridSelection(pageObj.id, e.ctrlKey || e.metaKey || e.shiftKey);
-                };
-
-                div.innerHTML = `
-                    <div class="flex-1 bg-gray-100 rounded overflow-hidden relative mb-2 flex items-center justify-center grid-canvas-wrapper" style="aspect-ratio: 1/1.4;">
-                        <span class="text-xs text-gray-400">...</span>
-                        <div class="absolute top-2 left-2 w-5 h-5 rounded-full border-2 ${isSelected ? 'bg-blue-500 border-blue-500' : 'bg-white/80 border-gray-300'} flex items-center justify-center transition-colors z-10">
-                            ${isSelected ? '<i class="fa-solid fa-check text-white text-[10px]"></i>' : ''}
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center text-xs text-gray-600 px-1">
-                        <span class="font-bold">第 ${logicalNum} 頁</span>
-                        <span class="text-gray-300 text-[10px]">源:${pageObj.originalPage}</span>
-                    </div>
-                `;
-                container.appendChild(div);
-                renderSmallCanvas(pageObj.originalPage, div.querySelector('.grid-canvas-wrapper'));
-            });
-
-            if (sortableInstance) sortableInstance.destroy();
-            sortableInstance = new Sortable(container, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                dragClass: 'sortable-drag',
-                delay: 100, // slight delay to prevent drag when clicking
-                delayOnTouchOnly: true,
-                onEnd: function (evt) {
-                    const item = pageSequence.splice(evt.oldIndex, 1)[0];
-                    pageSequence.splice(evt.newIndex, 0, item);
-                    // Re-render to update page numbers
-                    renderGridEditor(); 
-                    generateThumbnails();
-                }
-            });
-        }
-
-        function toggleGridSelection(id, multiSelect) {
-            if (!multiSelect) selectedPageIds.clear();
-            
-            if (selectedPageIds.has(id)) {
-                selectedPageIds.delete(id);
-            } else {
-                selectedPageIds.add(id);
-            }
-            renderGridEditor();
-            updateUIState();
-        }
-
-        function selectAllPages() {
-            pageSequence.forEach(p => selectedPageIds.add(p.id));
-            renderGridEditor();
-            updateUIState();
-            showToast('已全選');
-        }
-
-        // --- Copy / Paste / Delete ---
-        function copySelectedPages() {
-            if (selectedPageIds.size === 0) return;
-            clipboardPages = pageSequence
-                .filter(p => selectedPageIds.has(p.id))
-                .map(p => ({ originalPage: p.originalPage })); 
-            showToast(`已複製 ${clipboardPages.length} 頁`, 'success');
-            updateUIState();
-        }
-
-        function pastePages() {
-            if (clipboardPages.length === 0) return;
-            
-            let insertIndex = pageSequence.length;
-            if (selectedPageIds.size > 0) {
-                // Paste after the last selected item
-                let maxIdx = -1;
-                pageSequence.forEach((p, idx) => {
-                    if (selectedPageIds.has(p.id)) maxIdx = idx;
-                });
-                if (maxIdx !== -1) insertIndex = maxIdx + 1;
-            }
-
-            const newItems = clipboardPages.map(p => ({
-                originalPage: p.originalPage,
-                id: crypto.randomUUID()
-            }));
-
-            pageSequence.splice(insertIndex, 0, ...newItems);
-            
-            selectedPageIds.clear();
-            newItems.forEach(p => selectedPageIds.add(p.id));
-            
-            renderGridEditor();
-            generateThumbnails();
-            updateUIState();
-            showToast(`已貼上 ${newItems.length} 頁`);
-        }
-
-        function deleteSelectedPages() {
-            if (selectedPageIds.size === 0) return;
-            
-            const initialLen = pageSequence.length;
-            pageSequence = pageSequence.filter(p => !selectedPageIds.has(p.id));
-            
-            selectedPageIds.clear();
-            renderGridEditor();
-            generateThumbnails();
-            
-            if (pageSequence.length > 0) {
-                pageNum = 1;
-                renderPage(1);
-            }
-            
-            updateUIState();
-            showToast(`已刪除 ${initialLen - pageSequence.length} 頁`);
-        }
-
-        function resetPageOrder() {
-            if (!pdfDoc) return;
-            pageSequence = [];
-            for(let i=1; i<=pdfDoc.numPages; i++) {
-                pageSequence.push({ originalPage: i, id: crypto.randomUUID() });
-            }
-            selectedPageIds.clear();
-            clipboardPages = [];
-            renderGridEditor();
-            generateThumbnails();
-            pageNum = 1;
-            renderPage(1);
-            showToast('已重置為原始順序');
-        }
-
-        // --- Logic: Range Management ---
-        function addRange() {
-            if (!pdfDoc) return;
-            const start = parseInt(document.getElementById('startPage').value);
-            const end = parseInt(document.getElementById('endPage').value);
-            const max = pageSequence.length; // Use current virtual length
-
-            if (!start || !end || start > end || start < 1 || end > max) {
-                showToast(`請輸入有效的頁碼範圍 (1-${max})`, 'error');
-                return;
-            }
-            ranges.push({ id: Date.now(), start, end });
-            renderRangeList();
-        }
-
-        function removeRange(id) {
-            ranges = ranges.filter(r => r.id !== id);
-            selectedRangeIds.delete(id);
-            renderRangeList();
-        }
-
-        function clearRanges() {
-            ranges = [];
-            selectedRangeIds.clear();
-            renderRangeList();
-        }
-
-        function toggleRangeSelection(id) {
-            if (selectedRangeIds.has(id)) selectedRangeIds.delete(id);
-            else selectedRangeIds.add(id);
-            renderRangeList(false);
-        }
-
-        function renderRangeList(scroll = true) {
-            const container = document.getElementById('rangeList');
-            container.innerHTML = '';
-            if (ranges.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-400 text-xs py-8 border-2 border-dashed border-gray-200 rounded">尚未加入任何範圍</div>';
-            } else {
-                ranges.forEach((r, index) => {
-                    const isSelected = selectedRangeIds.has(r.id);
-                    const div = document.createElement('div');
-                    div.className = `flex items-center justify-between p-2 rounded border text-sm group cursor-pointer transition-all select-none ${isSelected ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300' : 'bg-white border-gray-200 hover:bg-gray-50'}`;
-                    div.onclick = (e) => { if (!e.target.closest('button')) toggleRangeSelection(r.id); };
-                    div.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <input type="checkbox" class="w-4 h-4 custom-checkbox rounded" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleRangeSelection(${r.id})">
-                            <span class="${isSelected ? 'bg-indigo-200 text-indigo-700' : 'bg-blue-100 text-blue-700'} text-xs font-bold px-2 py-0.5 rounded">#${index + 1}</span>
-                            <span class="text-gray-700 font-medium">第 ${r.start} - ${r.end} 頁</span>
-                        </div>
-                        <button onclick="event.stopPropagation(); removeRange(${r.id})" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition px-2"><i class="fa-solid fa-trash"></i></button>
-                    `;
-                    container.appendChild(div);
-                });
-                if (scroll) container.scrollTop = container.scrollHeight;
-            }
-            updateUIState();
-        }
-
-        // --- Auto Detect ---
-        function autoDetectChapters() {
-            if (!pdfDoc || pageSequence.length === 0) return;
-            ranges = [];
-            const total = pageSequence.length;
-            let cursor = 1;
-            while(cursor <= total) {
-                let next = Math.min(cursor + 4, total);
-                ranges.push({ id: Date.now() + cursor, start: cursor, end: next });
-                cursor = next + 1;
-            }
-            renderRangeList();
-            showToast(`已檢測出 ${ranges.length} 個章節`);
-        }
-
-        function splitEveryNPages() {
-            const n = prompt("每多少頁分割為一個文件？", "1");
-            if (!n || isNaN(n) || n < 1) return;
-            ranges = [];
-            const total = pageSequence.length;
-            const perPage = parseInt(n);
-            for (let i = 1; i <= total; i += perPage) {
-                ranges.push({
-                    id: Date.now() + i,
-                    start: i,
-                    end: Math.min(i + perPage - 1, total)
-                });
-            }
-            renderRangeList();
-        }
-
-        function openMergePreview() {
-            const selectedItems = ranges.filter(r => selectedRangeIds.has(r.id)).sort((a, b) => a.start - b.start);
-            if (selectedItems.length < 2) return;
-
-            const list = document.getElementById('mergeListPreview');
-            list.innerHTML = '';
-            selectedItems.forEach(item => {
-                list.innerHTML += `<li class="px-4 py-2 flex justify-between"><span>第 ${item.start}-${item.end} 頁</span></li>`;
-            });
-            
-            const newStart = Math.min(...selectedItems.map(i => i.start));
-            const newEnd = Math.max(...selectedItems.map(i => i.end));
-            document.getElementById('mergeResultRange').innerText = `第 ${newStart} - ${newEnd} 頁`;
-            document.getElementById('mergeModal').classList.remove('hidden');
-        }
-
-        function closeMergeModal() { document.getElementById('mergeModal').classList.add('hidden'); }
-
-        function confirmMerge() {
-            const selectedItems = ranges.filter(r => selectedRangeIds.has(r.id));
-            const newStart = Math.min(...selectedItems.map(i => i.start));
-            const newEnd = Math.max(...selectedItems.map(i => i.end));
-            ranges = ranges.filter(r => !selectedRangeIds.has(r.id));
-            ranges.push({ id: Date.now(), start: newStart, end: newEnd });
-            ranges.sort((a, b) => a.start - b.start);
-            selectedRangeIds.clear();
-            closeMergeModal();
-            renderRangeList();
-            showToast('合併成功', 'success');
-        }
-
-        // --- Process & Download (CRITICAL FIX) ---
-        function updateProgress(percent, text) {
-            document.getElementById('progressBar').style.width = `${percent}%`;
-            document.getElementById('progressText').innerText = `${percent}%`;
-            if (text) document.getElementById('progressDesc').innerText = text;
-        }
-
-        async function processAndDownload() {
-            const format = document.getElementById('outputFormat').value;
-            const modal = document.getElementById('progressModal');
-            modal.classList.remove('hidden');
-            
-            try {
-                const zip = new JSZip();
-                const { PDFDocument } = PDFLib;
-                updateProgress(10, '載入原始文件...');
-                const srcDoc = await PDFDocument.load(pdfBytes);
-                
-                // 1. Sanitize Ranges: Ensure ranges are valid for current sequence length
-                const maxPage = pageSequence.length;
-                if (maxPage === 0) throw new Error("沒有可匯出的頁面");
-
-                // If ranges are empty, export whole document
-                let processRanges = ranges.length > 0 ? ranges : [{start: 1, end: maxPage}];
-                
-                // Filter/Clamp invalid ranges
-                processRanges = processRanges.map(r => ({
-                    start: Math.min(Math.max(r.start, 1), maxPage),
-                    end: Math.min(Math.max(r.end, 1), maxPage)
-                })).filter(r => r.start <= r.end);
-
-                if (processRanges.length === 0) {
-                    throw new Error("範圍無效，請重新設定");
-                }
-
-                // Helper: Get 0-based source indices from logical ranges
-                const getIndices = (start, end) => {
-                    const indices = [];
-                    for (let i = start; i <= end; i++) {
-                        // Safely get original page number. i is 1-based logical page.
-                        // pageSequence is 0-indexed array.
-                        const seqItem = pageSequence[i-1];
-                        if (seqItem) {
-                            indices.push(seqItem.originalPage - 1); // -1 for pdf-lib 0-based index
-                        }
-                    }
-                    return indices;
-                };
-
-                if (format === 'pdf_split') {
-                    for (let i = 0; i < processRanges.length; i++) {
-                        const range = processRanges[i];
-                        updateProgress(10 + (i / processRanges.length * 80), `處理文件 ${i+1}...`);
-                        
-                        const subDoc = await PDFDocument.create();
-                        const indices = getIndices(range.start, range.end);
-                        const copiedPages = await subDoc.copyPages(srcDoc, indices);
-                        copiedPages.forEach(page => subDoc.addPage(page));
-                        
-                        const data = await subDoc.save();
-                        zip.file(`${fileName}_part_${i+1}.pdf`, data);
-                    }
-                    updateProgress(95, '打包中...');
-                    const content = await zip.generateAsync({ type: "blob" });
-                    downloadBlob(content, `${fileName}_split.zip`);
-                } 
-                else if (format === 'pdf_merge') {
-                    updateProgress(30, '合併頁面...');
-                    const newDoc = await PDFDocument.create();
-                    
-                    let allIndices = [];
-                    processRanges.forEach(r => {
-                        allIndices.push(...getIndices(r.start, r.end));
-                    });
-                    
-                    const copiedPages = await newDoc.copyPages(srcDoc, allIndices);
-                    copiedPages.forEach(page => newDoc.addPage(page));
-                    
-                    const data = await newDoc.save();
-                    downloadBlob(new Blob([data], {type: 'application/pdf'}), `${fileName}_reorganized.pdf`);
-                }
-                else if (format === 'images') {
-                    let processed = 0;
-                    // Re-calculate total items for progress bar
-                    const totalItems = processRanges.reduce((acc, r) => acc + (r.end - r.start + 1), 0);
-
-                    for (let r of processRanges) {
-                        for (let p = r.start; p <= r.end; p++) {
-                            processed++;
-                            updateProgress(10 + (processed / totalItems * 80), `Rendering page ${p}...`);
-                            
-                            const origPageNum = getOriginalPageNum(p);
-                            const page = await pdfDoc.getPage(origPageNum);
-                            const viewport = page.getViewport({ scale: 2.0 });
-                            const cvs = document.createElement('canvas');
-                            cvs.width = viewport.width;
-                            cvs.height = viewport.height;
-                            await page.render({ canvasContext: cvs.getContext('2d'), viewport: viewport }).promise;
-                            
-                            const imgData = cvs.toDataURL('image/jpeg', 0.85).split(',')[1];
-                            zip.file(`${fileName}_page_${p}.jpg`, imgData, {base64: true});
-                        }
-                    }
-                    const content = await zip.generateAsync({ type: "blob" });
-                    downloadBlob(content, `${fileName}_images.zip`);
-                }
-                else if (format === 'text') {
-                    let fullText = "";
-                    let processed = 0;
-                    const totalItems = processRanges.reduce((acc, r) => acc + (r.end - r.start + 1), 0);
-
-                    for (let r of processRanges) {
-                        for (let p = r.start; p <= r.end; p++) {
-                            processed++;
-                            updateProgress(10 + (processed / totalItems * 80), `Extracting page ${p}...`);
-                            
-                            const origPageNum = getOriginalPageNum(p);
-                            const page = await pdfDoc.getPage(origPageNum);
-                            const textContent = await page.getTextContent();
-                            const pageText = textContent.items.map(item => item.str).join(' ');
-                            fullText += `--- Page ${p} (Source: ${origPageNum}) ---\n${pageText}\n\n`;
-                        }
-                    }
-                    downloadBlob(new Blob([fullText], {type: 'text/plain'}), `${fileName}_text.txt`);
-                }
-
-                updateProgress(100, '完成！');
-                setTimeout(() => modal.classList.add('hidden'), 1000);
-            } catch (e) {
-                console.error(e);
-                showToast(e.message || '處理失敗', 'error');
                 modal.classList.add('hidden');
             }
         }
 
-        function downloadBlob(blob, name) {
+        function updateUI() {
+            const hasPages = pages.length > 0;
+            const hasSelection = selectedIds.size > 0;
+
+            // Layout Visibility
+            document.getElementById('emptyState').style.display = hasPages ? 'none' : 'flex';
+            document.getElementById('topBar').classList.toggle('hidden', !hasPages);
+            document.getElementById('gridWrapper').classList.toggle('hidden', !hasPages);
+            
+            // Fade in effect
+            if(hasPages) setTimeout(() => document.getElementById('topBar').classList.remove('opacity-0'), 50);
+            
+            // File Info
+            if (hasPages) {
+                document.getElementById('fileInfo').classList.replace('hidden', 'flex');
+                document.getElementById('pageCountDisplay').innerText = `${pages.length} 頁`;
+                document.getElementById('fileNameDisplay').innerText = fileName;
+                document.getElementById('exportBtn').disabled = false;
+            }
+
+            // Selection Stats & Toolbar
+            document.getElementById('selectionBadge').innerText = `${selectedIds.size} 選取`;
+            const toolbar = document.getElementById('floatingToolbar');
+            
+            if (hasSelection) {
+                toolbar.classList.remove('hidden');
+            } else {
+                // Only hide toolbar if clipboard is empty too, otherwise keep it for paste
+                if(clipboard.length === 0) toolbar.classList.add('hidden');
+                else toolbar.classList.remove('hidden');
+            }
+
+            // Paste Button State
+            document.getElementById('pasteBtn').disabled = clipboard.length === 0;
+        }
+
+        function updateZoom(val) {
+            currentZoom = val;
+            document.getElementById('gridContainer').style.gridTemplateColumns = `repeat(auto-fill, minmax(${val}px, 1fr))`;
+        }
+
+        // --- Event Handlers ---
+
+        // Handle clicking on gray background to deselect
+        function handleBackgroundClick(e) {
+            if (e.target.id === 'gridWrapper' || e.target.id === 'gridContainer') {
+                deselectAll();
+            }
+        }
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('gridWrapper').classList.contains('hidden')) return;
+            
+            const isCmd = e.ctrlKey || e.metaKey;
+            
+            if (isCmd && e.key === 'a') {
+                e.preventDefault();
+                selectAll();
+            }
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
+                e.preventDefault();
+                deleteSelected();
+            }
+            if (isCmd && e.key === 'c') {
+                e.preventDefault();
+                copySelected();
+            }
+            if (isCmd && e.key === 'v') {
+                e.preventDefault();
+                pastePages();
+            }
+        });
+
+        // --- File Loading ---
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading(true, "讀取檔案", "正在解析 PDF 結構...");
+            fileName = file.name.replace('.pdf', '');
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                // CRITICAL FIX: Copy buffer because pdfjsLib transfers ownership to worker, detaching the original
+                pdfBytes = arrayBuffer.slice(0); 
+
+                const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+                pdfDoc = await loadingTask.promise;
+
+                // Init Pages State
+                pages = [];
+                for (let i = 0; i < pdfDoc.numPages; i++) {
+                    pages.push({
+                        id: crypto.randomUUID(),
+                        type: 'original',
+                        originalIndex: i, // 0-based for pdf.js/pdf-lib
+                        rotation: 0
+                    });
+                }
+
+                // Reset state
+                selectedIds.clear();
+                clipboard = [];
+                
+                // Render
+                await renderGrid();
+                updateUI();
+                showLoading(false);
+                showToast(`成功載入 ${pdfDoc.numPages} 頁`);
+
+            } catch (error) {
+                console.error(error);
+                showLoading(false);
+                showToast("無法讀取檔案，請確認是否為有效 PDF", true);
+            }
+        }
+
+        // --- Grid Rendering ---
+
+        async function renderGrid() {
+            const container = document.getElementById('gridContainer');
+            container.innerHTML = '';
+
+            // Batch render loop
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                const isSelected = selectedIds.has(page.id);
+
+                const div = document.createElement('div');
+                div.className = `page-card bg-white rounded-xl p-3 border-2 cursor-pointer relative group ${isSelected ? 'selected border-brand' : 'border-transparent hover:border-indigo-200'}`;
+                div.dataset.id = page.id;
+                div.onclick = (e) => toggleSelection(page.id, e.ctrlKey || e.metaKey || e.shiftKey);
+
+                // Inner HTML
+                div.innerHTML = `
+                    <div class="relative aspect-[1/1.4] bg-slate-100 rounded-lg overflow-hidden mb-3 shadow-inner flex items-center justify-center">
+                        <div class="canvas-wrapper w-full h-full flex items-center justify-center transition-transform duration-300" style="transform: rotate(${page.rotation}deg);">
+                            ${page.type === 'blank' 
+                                ? '<div class="text-slate-300 text-sm font-medium">Blank Page</div>' 
+                                : '<canvas class="max-w-full max-h-full object-contain"></canvas>'
+                            }
+                        </div>
+                        <!-- Overlay Actions -->
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                            <button onclick="event.stopPropagation(); rotateSingle('${page.id}', 90)" class="bg-white/90 text-slate-600 hover:text-brand p-1.5 rounded-md shadow-sm backdrop-blur-sm"><i class="fa-solid fa-rotate-right"></i></button>
+                        </div>
+                        <!-- Checkmark -->
+                        <div class="absolute top-2 left-2 w-6 h-6 rounded-full border-2 ${isSelected ? 'bg-brand border-brand' : 'bg-white/80 border-slate-300'} flex items-center justify-center transition-colors shadow-sm z-10">
+                            <i class="fa-solid fa-check text-white text-xs ${isSelected ? 'opacity-100' : 'opacity-0'}"></i>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center px-1">
+                        <span class="text-xs font-bold text-slate-700">Page ${i + 1}</span>
+                        <span class="text-[10px] text-slate-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded">${page.type === 'original' ? '原稿' : '空白'}</span>
+                    </div>
+                `;
+
+                container.appendChild(div);
+
+                // Lazy render canvas
+                if (page.type === 'original') {
+                    renderThumbnail(page, div.querySelector('canvas'));
+                }
+            }
+
+            // Init Sortable
+            if (sortable) sortable.destroy();
+            sortable = new Sortable(container, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                delay: 100,
+                delayOnTouchOnly: true,
+                onEnd: function (evt) {
+                    const item = pages.splice(evt.oldIndex, 1)[0];
+                    pages.splice(evt.newIndex, 0, item);
+                    // Update UI page numbers without full re-render if possible, but here we re-render for simplicity and index consistency
+                    setTimeout(renderGrid, 50); 
+                }
+            });
+        }
+
+        async function renderThumbnail(pageObj, canvasEl) {
+            if (!pdfDoc) return;
+            try {
+                const page = await pdfDoc.getPage(pageObj.originalIndex + 1); // PDF.js is 1-based
+                const viewport = page.getViewport({ scale: 0.4 }); // Low res for grid
+                
+                canvasEl.height = viewport.height;
+                canvasEl.width = viewport.width;
+                
+                const ctx = canvasEl.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            } catch (e) {
+                console.error("Thumb error", e);
+            }
+        }
+
+        // --- Page Manipulation Logic ---
+
+        function toggleSelection(id, multi) {
+            if (!multi) selectedIds.clear();
+            if (selectedIds.has(id)) selectedIds.delete(id);
+            else selectedIds.add(id);
+            
+            updateVisualSelection();
+            updateUI();
+        }
+
+        function selectAll() {
+            pages.forEach(p => selectedIds.add(p.id));
+            updateVisualSelection();
+            updateUI();
+        }
+
+        function deselectAll() {
+            selectedIds.clear();
+            updateVisualSelection();
+            updateUI();
+        }
+
+        function updateVisualSelection() {
+            const cards = document.querySelectorAll('.page-card');
+            cards.forEach(card => {
+                const id = card.dataset.id;
+                const isSelected = selectedIds.has(id);
+                const checkmark = card.querySelector('.fa-check');
+                const checkCircle = checkmark.parentElement;
+
+                if (isSelected) {
+                    card.classList.add('selected', 'border-brand');
+                    card.classList.remove('border-transparent');
+                    checkCircle.className = "absolute top-2 left-2 w-6 h-6 rounded-full border-2 bg-brand border-brand flex items-center justify-center transition-colors shadow-sm z-10";
+                    checkmark.classList.remove('opacity-0');
+                } else {
+                    card.classList.remove('selected', 'border-brand');
+                    card.classList.add('border-transparent');
+                    checkCircle.className = "absolute top-2 left-2 w-6 h-6 rounded-full border-2 bg-white/80 border-slate-300 flex items-center justify-center transition-colors shadow-sm z-10";
+                    checkmark.classList.add('opacity-0');
+                }
+            });
+        }
+
+        function rotateSingle(id, angle) {
+            const page = pages.find(p => p.id === id);
+            if (page) {
+                page.rotation = (page.rotation + angle) % 360;
+                if (page.rotation < 0) page.rotation += 360;
+                
+                // Update visual directly
+                const card = document.querySelector(`.page-card[data-id="${id}"]`);
+                const wrapper = card.querySelector('.canvas-wrapper');
+                wrapper.style.transform = `rotate(${page.rotation}deg)`;
+            }
+        }
+
+        function rotateSelected(angle) {
+            if (selectedIds.size === 0) return;
+            pages.forEach(p => {
+                if (selectedIds.has(p.id)) {
+                    p.rotation = (p.rotation + angle) % 360;
+                    if (p.rotation < 0) p.rotation += 360;
+                    
+                    const card = document.querySelector(`.page-card[data-id="${p.id}"]`);
+                    if(card) {
+                        const wrapper = card.querySelector('.canvas-wrapper');
+                        wrapper.style.transform = `rotate(${p.rotation}deg)`;
+                    }
+                }
+            });
+        }
+
+        function deleteSelected() {
+            if (selectedIds.size === 0) return;
+            
+            pages = pages.filter(p => !selectedIds.has(p.id));
+            selectedIds.clear();
+            renderGrid();
+            updateUI();
+            showToast("已刪除頁面");
+        }
+
+        function addBlankPage() {
+            // Add after the last selected item, or at end
+            let insertIndex = pages.length;
+            if (selectedIds.size > 0) {
+                // Find index of last selected item
+                let maxIdx = -1;
+                pages.forEach((p, idx) => { if (selectedIds.has(p.id)) maxIdx = idx; });
+                if (maxIdx !== -1) insertIndex = maxIdx + 1;
+            }
+
+            const newPage = {
+                id: crypto.randomUUID(),
+                type: 'blank',
+                originalIndex: -1,
+                rotation: 0
+            };
+            
+            pages.splice(insertIndex, 0, newPage);
+            renderGrid();
+            updateUI();
+            
+            // Scroll to new page
+            setTimeout(() => {
+                const el = document.querySelector(`.page-card[data-id="${newPage.id}"]`);
+                if(el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }, 100);
+            
+            showToast("已插入空白頁");
+        }
+
+        function copySelected() {
+            if (selectedIds.size === 0) return;
+            // Clone deep to avoid reference issues
+            clipboard = pages
+                .filter(p => selectedIds.has(p.id))
+                .map(p => ({...p})); // shallow copy is enough for primitives
+            
+            updateUI();
+            showToast(`已複製 ${clipboard.length} 個頁面`);
+        }
+
+        function pastePages() {
+            if (clipboard.length === 0) return;
+            
+            let insertIndex = pages.length;
+            if (selectedIds.size > 0) {
+                let maxIdx = -1;
+                pages.forEach((p, idx) => { if (selectedIds.has(p.id)) maxIdx = idx; });
+                if (maxIdx !== -1) insertIndex = maxIdx + 1;
+            }
+
+            // Generate new IDs for pasted items
+            const newItems = clipboard.map(p => ({
+                ...p,
+                id: crypto.randomUUID()
+            }));
+
+            pages.splice(insertIndex, 0, ...newItems);
+            
+            // Select newly pasted items
+            selectedIds.clear();
+            newItems.forEach(p => selectedIds.add(p.id));
+            
+            renderGrid();
+            updateUI();
+            showToast(`已貼上 ${newItems.length} 個頁面`);
+        }
+
+        // --- Export Logic (Smart Engine) ---
+
+        async function exportFile(format) {
+            if (pages.length === 0) return;
+            showLoading(true, "正在導出", `正在生成 ${format.toUpperCase()} 文件...`);
+
+            try {
+                const { PDFDocument, degrees, PageSizes } = PDFLib;
+                const srcDoc = await PDFDocument.load(pdfBytes);
+                
+                if (format === 'pdf') {
+                    // Merge into one PDF
+                    const newDoc = await PDFDocument.create();
+                    
+                    for (const p of pages) {
+                        if (p.type === 'original') {
+                            const [copiedPage] = await newDoc.copyPages(srcDoc, [p.originalIndex]);
+                            // Apply rotation (cumulative with original rotation if needed, but setRotation replaces it usually)
+                            // To be safe, we add to existing rotation if we wanted to preserve relative, but simpler is to set absolute if visual is absolute.
+                            // pdf-lib setRotation adds to the page's existing rotation if we aren't careful? No, it sets the /Rotate entry.
+                            // However, our 'p.rotation' is visual rotation relative to upright.
+                            // Let's add our delta to the page's existing rotation.
+                            const existingRotation = copiedPage.getRotation().angle;
+                            copiedPage.setRotation(degrees(existingRotation + p.rotation));
+                            newDoc.addPage(copiedPage);
+                        } else {
+                            const page = newDoc.addPage(PageSizes.A4);
+                            // Blank page
+                        }
+                    }
+                    
+                    const data = await newDoc.save();
+                    downloadBlob(data, `${fileName}_organized.pdf`, 'application/pdf');
+
+                } else if (format === 'zip' || format === 'images' || format === 'text') {
+                    const zip = new JSZip();
+                    
+                    // Loop pages logic
+                    for (let i = 0; i < pages.length; i++) {
+                        const p = pages[i];
+                        const num = i + 1;
+
+                        if (format === 'zip') {
+                            if (p.type === 'original') {
+                                const subDoc = await PDFDocument.create();
+                                const [copiedPage] = await subDoc.copyPages(srcDoc, [p.originalIndex]);
+                                const existingRotation = copiedPage.getRotation().angle;
+                                copiedPage.setRotation(degrees(existingRotation + p.rotation));
+                                subDoc.addPage(copiedPage);
+                                const data = await subDoc.save();
+                                zip.file(`page_${num}.pdf`, data);
+                            } else {
+                                // Blank PDF
+                                const subDoc = await PDFDocument.create();
+                                subDoc.addPage(PageSizes.A4);
+                                const data = await subDoc.save();
+                                zip.file(`page_${num}_blank.pdf`, data);
+                            }
+                        }
+                        else if (format === 'images') {
+                            if (p.type === 'original') {
+                                // Render using PDF.js
+                                const pdfPage = await pdfDoc.getPage(p.originalIndex + 1);
+                                const viewport = pdfPage.getViewport({ scale: 2.0, rotation: p.rotation });
+                                const cvs = document.createElement('canvas');
+                                cvs.width = viewport.width;
+                                cvs.height = viewport.height;
+                                await pdfPage.render({ canvasContext: cvs.getContext('2d'), viewport: viewport }).promise;
+                                const imgData = cvs.toDataURL('image/jpeg', 0.9).split(',')[1];
+                                zip.file(`page_${num}.jpg`, imgData, {base64: true});
+                            } else {
+                                // Blank Image (white)
+                                const cvs = document.createElement('canvas');
+                                cvs.width = 595 * 2; cvs.height = 842 * 2; // A4 approx @ 2x
+                                const ctx = cvs.getContext('2d');
+                                ctx.fillStyle = "white";
+                                ctx.fillRect(0, 0, cvs.width, cvs.height);
+                                const imgData = cvs.toDataURL('image/jpeg', 0.9).split(',')[1];
+                                zip.file(`page_${num}_blank.jpg`, imgData, {base64: true});
+                            }
+                        }
+                        else if (format === 'text') {
+                            if (p.type === 'original') {
+                                const pdfPage = await pdfDoc.getPage(p.originalIndex + 1);
+                                const textContent = await pdfPage.getTextContent();
+                                const str = textContent.items.map(item => item.str).join(' ');
+                                zip.file(`page_${num}.txt`, str);
+                            } else {
+                                zip.file(`page_${num}_blank.txt`, "");
+                            }
+                        }
+                    }
+
+                    const zipContent = await zip.generateAsync({ type: "blob" });
+                    const ext = format === 'zip' ? 'zip' : 'zip';
+                    downloadBlob(zipContent, `${fileName}_${format}.${ext}`, 'application/zip');
+                }
+
+                showLoading(false);
+                showToast("導出成功！");
+
+            } catch (e) {
+                console.error(e);
+                showLoading(false);
+                showToast("導出失敗，請稍後再試", true);
+            }
+        }
+
+        function downloadBlob(data, name, type) {
+            const blob = new Blob([data], { type: type });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
