@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Organizer - 智能頁面管理</title>
+    <title>PDF Organizer - 智能頁面管理 v4.5</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -11,13 +11,13 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Libraries -->
+    <!-- 注意：這裡確保了 pdf.js 先被載入 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -52,7 +52,7 @@
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
         /* Grid Item Animations */
-        .page-card { transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .page-card { transition: transform 0.2s, box-shadow 0.2s, ring 0.2s; }
         .page-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.1); }
         .page-card.selected { 
             ring: 2px solid #6366f1; 
@@ -66,10 +66,6 @@
         .dark .sortable-ghost { background: #1e293b; border-color: #475569; }
         .sortable-drag { cursor: grabbing; opacity: 1; transform: scale(1.05) rotate(2deg); z-index: 50; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); }
 
-        /* Glassmorphism Utilities */
-        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); }
-        .dark .glass { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); }
-
         /* Loader */
         .loader { border-top-color: #6366f1; animation: spinner 0.8s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -80,7 +76,6 @@
 
         #dropOverlay { backdrop-filter: blur(8px); transition: opacity 0.2s ease-in-out; }
         
-        /* Editable Title Input */
         .filename-input {
             background: transparent;
             border: 1px solid transparent;
@@ -120,8 +115,6 @@
 
     <!-- Navbar -->
     <nav class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800/60 h-16 flex items-center justify-between px-6 z-20 flex-shrink-0 transition-colors sticky top-0">
-        
-        <!-- Logo / File Info Area -->
         <div class="flex items-center gap-4 flex-1 min-w-0">
             <div class="flex items-center gap-3 group cursor-pointer" onclick="if(pages.length===0) document.getElementById('fileInput').click()">
                 <div class="bg-gradient-to-br from-brand to-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-500/20 transform group-hover:scale-105 transition-transform">
@@ -132,7 +125,6 @@
                 </div>
             </div>
 
-            <!-- Active File Info (Replaces Title when active) -->
             <div id="fileInfo" class="hidden items-center gap-3 animate-fade-in pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-200 dark:border-slate-700 group focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand transition-all">
                     <i class="fa-regular fa-file-pdf text-red-500 mr-2"></i>
@@ -140,29 +132,22 @@
                     <i class="fa-solid fa-pen text-xs text-slate-400 ml-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></i>
                 </div>
                 <span id="pageCountDisplay" class="text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">0 頁</span>
-                
-                <!-- Close File Button -->
                 <button onclick="closeFile()" class="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition ml-1" title="關閉文件">
                     <i class="fa-solid fa-times"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Right Actions -->
         <div class="flex items-center gap-3">
-            
-            <!-- Dark Mode -->
             <button onclick="toggleDarkMode()" class="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition" title="外觀模式">
                 <i class="fa-solid fa-moon dark:hidden"></i>
                 <i class="fa-solid fa-sun hidden dark:inline"></i>
             </button>
 
-            <!-- Settings (Conditional) -->
             <div id="settingsGroup" class="relative group hidden">
                 <button class="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition">
                     <i class="fa-solid fa-gear"></i>
                 </button>
-                <!-- Dropdown -->
                 <div class="absolute right-0 mt-3 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50 overflow-hidden">
                     <div class="py-1.5">
                         <button onclick="openMetadataModal()" class="w-full text-left px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-brand dark:hover:text-indigo-400 flex items-center gap-3 transition-colors">
@@ -177,20 +162,18 @@
 
             <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
-            <!-- Main Upload Button (Hidden when active) -->
             <button id="navUploadBtn" onclick="document.getElementById('fileInput').click()" class="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 px-4 py-2 rounded-lg text-sm font-semibold transition shadow-md hover:shadow-lg flex items-center gap-2">
                 <i class="fa-solid fa-plus"></i> 
                 <span>開啟 PDF</span>
             </button>
             <input type="file" id="fileInput" accept=".pdf" class="hidden" onchange="handleFileUpload(event)">
 
-            <!-- Export Button -->
-            <div class="relative group">
+            <!-- Export Button Wrapper -->
+            <div id="exportBtnWrapper" class="relative group hidden">
                 <button id="exportBtn" disabled class="bg-brand hover:bg-brandHover disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/40 flex items-center gap-2">
                     <span>匯出</span>
                     <i class="fa-solid fa-chevron-down text-xs opacity-70 group-hover:translate-y-0.5 transition-transform"></i>
                 </button>
-                <!-- Export Dropdown -->
                 <div class="absolute right-0 mt-3 w-60 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50 overflow-hidden">
                     <div class="p-1.5">
                         <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">下載格式</div>
@@ -213,6 +196,13 @@
                             <div>
                                 <div class="font-medium">圖片序列 (JPG)</div>
                                 <div class="text-[10px] text-slate-400">高解析度圖片</div>
+                            </div>
+                        </button>
+                        <button onclick="exportFile('text')" class="w-full text-left px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg flex items-center gap-3 transition-colors group/item">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 flex items-center justify-center group-hover/item:bg-slate-200 dark:group-hover/item:bg-slate-600 transition-colors"><i class="fa-solid fa-align-left"></i></div>
+                            <div>
+                                <div class="font-medium">純文字 (TXT)</div>
+                                <div class="text-[10px] text-slate-400">提取頁面內容</div>
                             </div>
                         </button>
                     </div>
@@ -355,6 +345,13 @@
     </div>
 
     <script>
+        // --- 移至底部的 PDF.js 初始化設定 ---
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        } else {
+            console.warn("PDF.js library not loaded yet.");
+        }
+
         // --- State ---
         let pdfDoc = null;
         let pdfBytes = null;
@@ -362,11 +359,9 @@
         let pages = []; 
         let selectedIds = new Set();
         let clipboard = []; 
-        let sortable = null;
+        let sortableInstance = null; // Consistently use sortableInstance
         let history = [];
         let historyIndex = -1;
-        
-        // Settings State
         let watermarkSettings = null;
         let metadataSettings = null;
 
@@ -420,6 +415,39 @@
             }
         });
 
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('gridWrapper').classList.contains('hidden')) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const isCmd = e.ctrlKey || e.metaKey;
+            
+            if (isCmd && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            }
+            if ((isCmd && e.key.toLowerCase() === 'y') || (isCmd && e.shiftKey && e.key.toLowerCase() === 'z')) {
+                e.preventDefault();
+                redo();
+            }
+            if (isCmd && e.key.toLowerCase() === 'a') {
+                e.preventDefault();
+                selectAll();
+            }
+            if (isCmd && e.key.toLowerCase() === 'c') {
+                e.preventDefault();
+                copySelected();
+            }
+            if (isCmd && e.key.toLowerCase() === 'v') {
+                e.preventDefault();
+                pastePages();
+            }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault();
+                deleteSelected();
+            }
+        });
+
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (file) loadFile(file);
@@ -427,7 +455,6 @@
 
         async function loadFile(file) {
             showLoading(true, "讀取檔案", "正在解析 PDF...");
-            // Reset Name
             fileName = file.name.replace('.pdf', '');
             document.getElementById('fileNameInput').value = fileName;
 
@@ -527,17 +554,19 @@
             // Navbar State
             if (hasPages) {
                 document.getElementById('fileInfo').classList.replace('hidden', 'flex');
-                document.getElementById('appTitle').classList.add('hidden'); // Hide title to make space
+                document.getElementById('appTitle').classList.add('hidden');
                 document.getElementById('pageCountDisplay').innerText = `${pages.length} 頁`;
                 document.getElementById('exportBtn').disabled = false;
-                document.getElementById('navUploadBtn').classList.add('hidden'); // Hide Upload button
-                document.getElementById('settingsGroup').classList.remove('hidden'); // Show Settings
+                document.getElementById('navUploadBtn').classList.add('hidden'); 
+                document.getElementById('settingsGroup').classList.remove('hidden'); 
+                document.getElementById('exportBtnWrapper').classList.remove('hidden');
             } else {
                 document.getElementById('fileInfo').classList.replace('flex', 'hidden');
                 document.getElementById('appTitle').classList.remove('hidden');
                 document.getElementById('exportBtn').disabled = true;
                 document.getElementById('navUploadBtn').classList.remove('hidden');
                 document.getElementById('settingsGroup').classList.add('hidden');
+                document.getElementById('exportBtnWrapper').classList.add('hidden');
             }
 
             document.getElementById('selectionBadge').innerText = `${selectedIds.size} 選取`;
@@ -652,47 +681,104 @@
         // --- Grid & Pages ---
         async function renderGrid() {
             const container = document.getElementById('gridContainer');
-            container.innerHTML = '';
+            const existingNodes = new Map();
+            
+            // Index existing nodes
+            Array.from(container.children).forEach(node => {
+                if (node.dataset.id) existingNodes.set(node.dataset.id, node);
+            });
 
             for (let i = 0; i < pages.length; i++) {
                 const page = pages[i];
+                let card = existingNodes.get(page.id);
                 const isSelected = selectedIds.has(page.id);
-                const div = document.createElement('div');
-                div.className = `page-card bg-white dark:bg-darkCard rounded-xl p-3 cursor-pointer relative group ${isSelected ? 'selected' : 'border border-transparent hover:border-indigo-200 dark:hover:border-slate-700'}`;
-                div.dataset.id = page.id;
-                div.onclick = (e) => toggleSelection(page.id, e.ctrlKey || e.metaKey || e.shiftKey);
+                
+                const baseClasses = "page-card bg-white dark:bg-darkCard rounded-xl p-3 cursor-pointer relative group transition-all";
+                const selectClasses = isSelected 
+                    ? "selected border-brand" 
+                    : "border border-transparent hover:border-indigo-200 dark:hover:border-slate-700";
 
-                div.innerHTML = `
-                    <div class="relative aspect-[1/1.4] bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden mb-3 shadow-inner flex items-center justify-center">
-                        <div class="canvas-wrapper w-full h-full flex items-center justify-center transition-transform duration-300" style="transform: rotate(${page.rotation}deg);">
-                            ${page.type === 'blank' ? '<div class="text-slate-300 text-sm font-medium">Blank</div>' : '<canvas class="max-w-full max-h-full object-contain"></canvas>'}
+                if (!card) {
+                    // Create new card
+                    card = document.createElement('div');
+                    card.dataset.id = page.id;
+                    card.dataset.isNew = "true"; 
+                    card.onclick = (e) => toggleSelection(page.id, e.ctrlKey || e.metaKey || e.shiftKey);
+                    
+                    card.innerHTML = `
+                        <div class="relative aspect-[1/1.4] bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden mb-3 shadow-inner flex items-center justify-center">
+                            <div class="canvas-wrapper w-full h-full flex items-center justify-center transition-transform duration-300">
+                                ${page.type === 'blank' 
+                                    ? '<div class="text-slate-300 dark:text-slate-600 text-sm font-medium">Blank Page</div>' 
+                                    : '<canvas class="max-w-full max-h-full object-contain"></canvas>'
+                                }
+                            </div>
+                            <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20">
+                                <button onclick="event.stopPropagation(); saveState(); rotateSingle('${page.id}', 90)" class="bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 hover:text-brand p-1.5 rounded-md shadow-sm backdrop-blur-sm"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                            <div class="check-circle absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors shadow-sm z-10">
+                                <i class="check-icon fa-solid fa-check text-white text-xs"></i>
+                            </div>
                         </div>
-                        <div class="absolute top-2 left-2 w-6 h-6 rounded-full border-2 ${isSelected ? 'bg-brand border-brand' : 'bg-white/80 dark:bg-slate-700/80 border-slate-300 dark:border-slate-600'} flex items-center justify-center transition-colors shadow-sm z-10">
-                            <i class="fa-solid fa-check text-white text-xs ${isSelected ? 'opacity-100' : 'opacity-0'}"></i>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center px-1">
-                        <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Pg ${i + 1}</span>
-                        <span class="text-[10px] text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">${page.type === 'original' ? '原稿' : '空白'}</span>
-                    </div>`;
-                container.appendChild(div);
-                if (page.type === 'original') renderThumbnail(page, div.querySelector('canvas'));
+                        <div class="flex justify-between items-center px-1">
+                            <span class="page-num text-xs font-bold text-slate-700 dark:text-slate-300">Pg ${i + 1}</span>
+                            <span class="text-[10px] text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">${page.type === 'original' ? '原稿' : '空白'}</span>
+                        </div>`;
+                }
+                
+                // Append moves existing node to new position, preserving its state (canvas image)
+                container.appendChild(card);
+                existingNodes.delete(page.id);
+                
+                // Update Dynamic Props
+                card.className = `${baseClasses} ${selectClasses}`;
+                
+                const wrapper = card.querySelector('.canvas-wrapper');
+                if(wrapper) wrapper.style.transform = `rotate(${page.rotation}deg)`;
+                
+                const pageNum = card.querySelector('.page-num');
+                if(pageNum) pageNum.innerText = `Pg ${i + 1}`;
+                
+                const checkCircle = card.querySelector('.check-circle');
+                const checkIcon = card.querySelector('.check-icon');
+                if (checkCircle && checkIcon) {
+                    if (isSelected) {
+                        checkCircle.className = "check-circle absolute top-2 left-2 w-6 h-6 rounded-full border-2 bg-brand border-brand flex items-center justify-center transition-colors shadow-sm z-10";
+                        checkIcon.classList.replace('opacity-0', 'opacity-100'); 
+                        checkIcon.style.opacity = '1';
+                    } else {
+                        checkCircle.className = "check-circle absolute top-2 left-2 w-6 h-6 rounded-full border-2 bg-white/80 dark:bg-slate-700/80 border-slate-300 dark:border-slate-600 flex items-center justify-center transition-colors shadow-sm z-10";
+                        checkIcon.style.opacity = '0';
+                    }
+                }
+
+                // Render canvas only if new (to prevent reload flicker)
+                if (card.dataset.isNew === "true") {
+                    delete card.dataset.isNew; 
+                    if (page.type === 'original') renderThumbnail(page, card.querySelector('canvas'));
+                }
             }
 
-            if (sortable) sortable.destroy();
-            sortable = new Sortable(container, {
-                animation: 200,
-                ghostClass: 'sortable-ghost',
-                dragClass: 'sortable-drag',
-                delay: 100, delayOnTouchOnly: true,
-                onEnd: function (evt) {
-                    saveState();
-                    const item = pages.splice(evt.oldIndex, 1)[0];
-                    pages.splice(evt.newIndex, 0, item);
-                    saveState();
-                    setTimeout(renderGrid, 50); 
-                }
-            });
+            // Remove deleted nodes
+            existingNodes.forEach(node => node.remove());
+            
+            // Init Sortable Only Once
+            if (!sortableInstance) {
+                sortableInstance = new Sortable(container, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    delay: 100,
+                    delayOnTouchOnly: true,
+                    onEnd: function (evt) {
+                        saveState(); 
+                        const item = pages.splice(evt.oldIndex, 1)[0];
+                        pages.splice(evt.newIndex, 0, item);
+                        saveState(); 
+                        setTimeout(renderGrid, 50); // Update indices
+                    }
+                });
+            }
         }
 
         async function renderThumbnail(pageObj, canvasEl) {
@@ -715,6 +801,15 @@
         function updateZoom(val) { document.getElementById('gridContainer').style.gridTemplateColumns = `repeat(auto-fill, minmax(${val}px, 1fr))`; }
         function handleBackgroundClick(e) { if (e.target.id === 'gridWrapper' || e.target.id === 'gridContainer') deselectAll(); }
         
+        function rotateSingle(id, angle) {
+            const page = pages.find(p => p.id === id);
+            if (page) {
+                page.rotation = (page.rotation + angle) % 360;
+                if (page.rotation < 0) page.rotation += 360;
+                renderGrid(); 
+            }
+        }
+
         function rotateSelected(angle) {
             if (selectedIds.size === 0) return;
             saveState();
@@ -816,7 +911,20 @@
                             } else {
                                 targetPage = subDoc.addPage(PageSizes.A4);
                             }
-                            if (watermarkSettings) { /* watermark logic same as above */ }
+                            if (watermarkSettings) {
+                                const wmFontSub = await subDoc.embedFont(StandardFonts.HelveticaBold);
+                                const { width, height } = targetPage.getSize();
+                                const wmColor = hexToRgb(watermarkSettings.color);
+                                targetPage.drawText(watermarkSettings.text, {
+                                    x: width / 2 - (watermarkSettings.text.length * 15),
+                                    y: height / 2,
+                                    size: 50,
+                                    font: wmFontSub,
+                                    color: rgb(wmColor.r, wmColor.g, wmColor.b),
+                                    opacity: watermarkSettings.opacity,
+                                    rotate: degrees(45),
+                                });
+                            }
                             const data = await subDoc.save();
                             zip.file(`page_${num}.pdf`, data);
                         }
@@ -858,9 +966,14 @@
             const blob = new Blob([data], { type: type });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = name;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
+
     </script>
 </body>
 </html>
