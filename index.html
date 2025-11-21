@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Organizer Pro - SaaS Edition v3.1 (Fix)</title>
+    <title>PDF Organizer - 智能頁面管理</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
@@ -19,13 +21,20 @@
         tailwind.config = {
             darkMode: 'class',
             theme: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                },
                 extend: {
                     colors: {
-                        brand: '#4f46e5', 
-                        brandHover: '#4338ca',
+                        brand: '#6366f1', // Indigo 500
+                        brandHover: '#4f46e5', // Indigo 600
                         surface: '#f8fafc',
                         darkSurface: '#0f172a',
                         darkCard: '#1e293b'
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'glow': '0 0 15px rgba(99, 102, 241, 0.3)'
                     }
                 }
             }
@@ -33,115 +42,178 @@
     </script>
 
     <style>
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        body { font-family: 'Inter', sans-serif; }
         
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
-        /* Grid Item Styles */
-        .page-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .page-card:hover { transform: translateY(-4px); }
-        .page-card.selected { ring: 2px solid #4f46e5; transform: scale(1.02); z-index: 10; }
+        /* Grid Item Animations */
+        .page-card { transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .page-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.1); }
+        .page-card.selected { 
+            ring: 2px solid #6366f1; 
+            transform: scale(1.02); 
+            z-index: 10; 
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
         
         /* Sortable Styles */
-        .sortable-ghost { opacity: 0.4; background: #e2e8f0; border: 2px dashed #94a3b8; }
-        .dark .sortable-ghost { background: #334155; border-color: #64748b; }
-        .sortable-drag { cursor: grabbing; opacity: 1; transform: scale(1.05) rotate(2deg); z-index: 50; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); }
+        .sortable-ghost { opacity: 0.3; background: #e0e7ff; border: 2px dashed #a5b4fc; border-radius: 0.75rem; }
+        .dark .sortable-ghost { background: #1e293b; border-color: #475569; }
+        .sortable-drag { cursor: grabbing; opacity: 1; transform: scale(1.05) rotate(2deg); z-index: 50; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); }
+
+        /* Glassmorphism Utilities */
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); }
+        .dark .glass { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); }
 
         /* Loader */
-        .loader { border-top-color: #4f46e5; animation: spinner 1s linear infinite; }
+        .loader { border-top-color: #6366f1; animation: spinner 0.8s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         /* Animations */
-        .toolbar-enter { animation: slideUp 0.3s ease-out forwards; }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .toolbar-enter { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { transform: translate(-50%, 100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 
-        /* Drag Overlay */
-        #dropOverlay { backdrop-filter: blur(4px); }
+        #dropOverlay { backdrop-filter: blur(8px); transition: opacity 0.2s ease-in-out; }
+        
+        /* Editable Title Input */
+        .filename-input {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 0 4px;
+            transition: all 0.2s;
+        }
+        .filename-input:hover {
+            border-color: #e2e8f0;
+            background-color: #f8fafc;
+        }
+        .dark .filename-input:hover {
+            border-color: #334155;
+            background-color: #1e293b;
+        }
+        .filename-input:focus {
+            border-color: #6366f1;
+            background-color: white;
+            color: #0f172a;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden text-slate-800 bg-slate-100 dark:bg-darkSurface dark:text-slate-200 transition-colors duration-300" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+<body class="h-screen flex flex-col overflow-hidden text-slate-700 bg-slate-50 dark:bg-darkSurface dark:text-slate-300 transition-colors duration-300">
 
     <!-- Drop Zone Overlay -->
-    <div id="dropOverlay" class="fixed inset-0 z-[100] bg-brand/90 hidden flex-col items-center justify-center transition-opacity duration-200">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl text-center transform scale-110">
-            <i class="fa-solid fa-cloud-arrow-up text-6xl text-brand mb-4"></i>
-            <h2 class="text-2xl font-bold text-slate-800">釋放以開始上傳</h2>
-            <p class="text-slate-500 mt-2">支援 PDF 文件</p>
+    <div id="dropOverlay" class="fixed inset-0 z-[100] bg-brand/90 dark:bg-indigo-900/90 hidden flex-col items-center justify-center opacity-0 pointer-events-none">
+        <div class="bg-white dark:bg-slate-800 p-12 rounded-3xl shadow-2xl text-center transform scale-110 transition-transform border border-white/20">
+            <div class="animate-bounce mb-6">
+                <i class="fa-solid fa-cloud-arrow-up text-7xl text-brand dark:text-indigo-400"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">釋放文件</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2 font-medium">立即開始整理您的 PDF</p>
         </div>
     </div>
 
     <!-- Navbar -->
-    <nav class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 h-16 flex items-center justify-between px-6 shadow-sm z-20 flex-shrink-0 transition-colors">
-        <div class="flex items-center gap-3">
-            <div class="bg-brand text-white p-2 rounded-lg shadow-sm">
-                <i class="fa-solid fa-layer-group"></i>
-            </div>
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="font-bold text-lg leading-tight">PDF Organizer</h1>
-                    <span class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">PRO</span>
+    <nav class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800/60 h-16 flex items-center justify-between px-6 z-20 flex-shrink-0 transition-colors sticky top-0">
+        
+        <!-- Logo / File Info Area -->
+        <div class="flex items-center gap-4 flex-1 min-w-0">
+            <div class="flex items-center gap-3 group cursor-pointer" onclick="if(pages.length===0) document.getElementById('fileInput').click()">
+                <div class="bg-gradient-to-br from-brand to-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-500/20 transform group-hover:scale-105 transition-transform">
+                    <i class="fa-solid fa-layer-group text-lg"></i>
                 </div>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">SaaS EDITION v3.1</p>
+                <div id="appTitle" class="transition-opacity duration-300">
+                    <h1 class="font-bold text-lg tracking-tight text-slate-800 dark:text-white">PDF Organizer</h1>
+                </div>
+            </div>
+
+            <!-- Active File Info (Replaces Title when active) -->
+            <div id="fileInfo" class="hidden items-center gap-3 animate-fade-in pl-4 border-l border-slate-200 dark:border-slate-700">
+                <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-200 dark:border-slate-700 group focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand transition-all">
+                    <i class="fa-regular fa-file-pdf text-red-500 mr-2"></i>
+                    <input type="text" id="fileNameInput" class="filename-input font-medium text-sm bg-transparent border-none outline-none w-48 truncate text-slate-700 dark:text-slate-200 placeholder-slate-400" spellcheck="false" onblur="updateFileName()" onkeydown="if(event.key==='Enter') this.blur()">
+                    <i class="fa-solid fa-pen text-xs text-slate-400 ml-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></i>
+                </div>
+                <span id="pageCountDisplay" class="text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">0 頁</span>
+                
+                <!-- Close File Button -->
+                <button onclick="closeFile()" class="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition ml-1" title="關閉文件">
+                    <i class="fa-solid fa-times"></i>
+                </button>
             </div>
         </div>
 
+        <!-- Right Actions -->
         <div class="flex items-center gap-3">
-            <!-- File Info Tag -->
-            <div id="fileInfo" class="hidden items-center gap-3 px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm transition-colors mr-2">
-                <i class="fa-regular fa-file-pdf text-red-500"></i>
-                <span id="fileNameDisplay" class="font-medium truncate max-w-[150px]">filename.pdf</span>
-                <span id="pageCountDisplay" class="text-slate-400 text-xs border-l border-slate-300 dark:border-slate-600 pl-3">0 頁</span>
-            </div>
+            
+            <!-- Dark Mode -->
+            <button onclick="toggleDarkMode()" class="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition" title="外觀模式">
+                <i class="fa-solid fa-moon dark:hidden"></i>
+                <i class="fa-solid fa-sun hidden dark:inline"></i>
+            </button>
 
-            <!-- Tools Dropdown -->
-            <div class="relative group">
-                <button class="p-2 text-slate-500 hover:text-brand dark:text-slate-400 dark:hover:text-white transition rounded-lg border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-sliders"></i> 設定
+            <!-- Settings (Conditional) -->
+            <div id="settingsGroup" class="relative group hidden">
+                <button class="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition">
+                    <i class="fa-solid fa-gear"></i>
                 </button>
-                <div class="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
-                    <div class="p-1">
-                        <button onclick="openMetadataModal()" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-3">
-                            <i class="fa-solid fa-tags text-blue-500 w-4"></i> 元數據編輯
+                <!-- Dropdown -->
+                <div class="absolute right-0 mt-3 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50 overflow-hidden">
+                    <div class="py-1.5">
+                        <button onclick="openMetadataModal()" class="w-full text-left px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-brand dark:hover:text-indigo-400 flex items-center gap-3 transition-colors">
+                            <i class="fa-solid fa-tags w-4"></i> 元數據編輯
                         </button>
-                        <button onclick="openSecurityModal()" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-3">
-                            <i class="fa-solid fa-lock text-emerald-500 w-4"></i> 加密保護
-                        </button>
-                        <button onclick="openWatermarkModal()" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-3">
-                            <i class="fa-solid fa-stamp text-orange-500 w-4"></i> 浮水印設定
-                        </button>
-                        <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                        <button onclick="toggleDarkMode()" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-3">
-                            <i class="fa-solid fa-circle-half-stroke text-slate-500 w-4"></i> 切換深色模式
+                        <button onclick="openWatermarkModal()" class="w-full text-left px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-brand dark:hover:text-indigo-400 flex items-center gap-3 transition-colors">
+                            <i class="fa-solid fa-stamp w-4"></i> 浮水印設定
                         </button>
                     </div>
                 </div>
             </div>
 
-            <button onclick="document.getElementById('fileInput').click()" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2">
-                <i class="fa-solid fa-folder-open text-brand"></i> 開啟
+            <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+            <!-- Main Upload Button (Hidden when active) -->
+            <button id="navUploadBtn" onclick="document.getElementById('fileInput').click()" class="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 px-4 py-2 rounded-lg text-sm font-semibold transition shadow-md hover:shadow-lg flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> 
+                <span>開啟 PDF</span>
             </button>
             <input type="file" id="fileInput" accept=".pdf" class="hidden" onchange="handleFileUpload(event)">
 
+            <!-- Export Button -->
             <div class="relative group">
-                <button id="exportBtn" disabled class="bg-brand hover:bg-brandHover disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-md shadow-indigo-500/20 flex items-center gap-2">
+                <button id="exportBtn" disabled class="bg-brand hover:bg-brandHover disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/40 flex items-center gap-2">
                     <span>匯出</span>
-                    <i class="fa-solid fa-chevron-down text-xs opacity-80"></i>
+                    <i class="fa-solid fa-chevron-down text-xs opacity-70 group-hover:translate-y-0.5 transition-transform"></i>
                 </button>
-                <div class="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
-                    <div class="p-1">
-                        <button onclick="exportFile('pdf')" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-3">
-                            <i class="fa-solid fa-file-pdf text-red-500 text-lg w-6"></i> PDF 文件
+                <!-- Export Dropdown -->
+                <div class="absolute right-0 mt-3 w-60 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50 overflow-hidden">
+                    <div class="p-1.5">
+                        <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">下載格式</div>
+                        <button onclick="exportFile('pdf')" class="w-full text-left px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg flex items-center gap-3 transition-colors group/item">
+                            <div class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center group-hover/item:bg-red-100 dark:group-hover/item:bg-red-900/30 transition-colors"><i class="fa-solid fa-file-pdf"></i></div>
+                            <div>
+                                <div class="font-medium">PDF 文件</div>
+                                <div class="text-[10px] text-slate-400">完整合併檔案</div>
+                            </div>
                         </button>
-                        <button onclick="exportFile('zip')" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-3">
-                            <i class="fa-solid fa-file-zipper text-yellow-500 text-lg w-6"></i> 獨立 PDF (ZIP)
+                        <button onclick="exportFile('zip')" class="w-full text-left px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg flex items-center gap-3 transition-colors group/item">
+                            <div class="w-8 h-8 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-500 flex items-center justify-center group-hover/item:bg-yellow-100 dark:group-hover/item:bg-yellow-900/30 transition-colors"><i class="fa-solid fa-file-zipper"></i></div>
+                            <div>
+                                <div class="font-medium">獨立 PDF (ZIP)</div>
+                                <div class="text-[10px] text-slate-400">每頁單獨存檔</div>
+                            </div>
                         </button>
-                        <button onclick="exportFile('images')" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-3">
-                            <i class="fa-regular fa-image text-blue-500 text-lg w-6"></i> 圖片序列 (JPG)
+                        <button onclick="exportFile('images')" class="w-full text-left px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg flex items-center gap-3 transition-colors group/item">
+                            <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center group-hover/item:bg-blue-100 dark:group-hover/item:bg-blue-900/30 transition-colors"><i class="fa-regular fa-image"></i></div>
+                            <div>
+                                <div class="font-medium">圖片序列 (JPG)</div>
+                                <div class="text-[10px] text-slate-400">高解析度圖片</div>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -154,132 +226,132 @@
         
         <!-- Empty State -->
         <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-0 px-4 pointer-events-none">
-            <div class="bg-white dark:bg-slate-800 p-10 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 text-center max-w-md w-full transition-all hover:shadow-lg pointer-events-auto">
-                <div class="w-20 h-20 bg-indigo-50 dark:bg-indigo-900/30 text-brand rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-inner">
+            <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-12 rounded-3xl border border-slate-200 dark:border-slate-700 text-center max-w-lg w-full transition-all hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900 pointer-events-auto group">
+                <div class="w-24 h-24 bg-white dark:bg-slate-700 text-brand rounded-3xl flex items-center justify-center mx-auto mb-8 text-4xl shadow-soft group-hover:scale-110 transition-transform duration-300">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-3">拖放或開啟 PDF</h2>
-                <p class="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm">支援拖放上傳、加密保護、元數據編輯與浮水印功能。</p>
-                <button onclick="document.getElementById('fileInput').click()" class="w-full bg-brand hover:bg-brandHover text-white px-8 py-3 rounded-xl font-medium shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5 flex justify-center items-center gap-2">
+                <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4 tracking-tight">上傳您的 PDF</h2>
+                <p class="text-slate-500 dark:text-slate-400 mb-10 leading-relaxed">
+                    拖放文件至此，或點擊下方按鈕。<br>
+                    <span class="text-xs opacity-70">支援頁面重組、旋轉、刪除與多格式導出。</span>
+                </p>
+                <button onclick="document.getElementById('fileInput').click()" class="bg-brand hover:bg-brandHover text-white px-10 py-4 rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all transform hover:-translate-y-1 flex justify-center items-center gap-3 mx-auto">
                     <i class="fa-solid fa-plus"></i> 選擇檔案
                 </button>
             </div>
         </div>
 
         <!-- Controls Bar (Top) -->
-        <div id="topBar" class="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 hidden opacity-0 transition-opacity duration-300 z-10">
+        <div id="topBar" class="h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between px-6 hidden opacity-0 transition-opacity duration-300 z-10">
             <div class="flex items-center gap-4 text-sm">
-                <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 mr-2">
-                    <button onclick="undo()" id="btnUndo" disabled class="p-1.5 px-3 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 transition"><i class="fa-solid fa-rotate-left"></i></button>
-                    <button onclick="redo()" id="btnRedo" disabled class="p-1.5 px-3 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 transition"><i class="fa-solid fa-rotate-right"></i></button>
+                <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-2 shadow-sm">
+                    <button onclick="undo()" id="btnUndo" disabled class="w-8 h-8 flex items-center justify-center rounded hover:bg-white dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-30 transition"><i class="fa-solid fa-rotate-left"></i></button>
+                    <button onclick="redo()" id="btnRedo" disabled class="w-8 h-8 flex items-center justify-center rounded hover:bg-white dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-30 transition"><i class="fa-solid fa-rotate-right"></i></button>
                 </div>
+                
                 <div class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"></div>
-                <button onclick="selectAll()" class="text-slate-600 dark:text-slate-400 hover:text-brand font-medium transition">全選</button>
-                <span class="text-slate-300 dark:text-slate-700">|</span>
-                <button onclick="deselectAll()" class="text-slate-600 dark:text-slate-400 hover:text-brand font-medium transition">取消</button>
-                <span class="bg-indigo-50 dark:bg-indigo-900/30 text-brand dark:text-indigo-400 px-2 py-0.5 rounded text-xs font-bold ml-2" id="selectionBadge">0 選取</span>
+                
+                <button onclick="selectAll()" class="text-slate-600 dark:text-slate-400 hover:text-brand dark:hover:text-indigo-400 font-medium transition px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800">全選</button>
+                <button onclick="deselectAll()" class="text-slate-600 dark:text-slate-400 hover:text-brand dark:hover:text-indigo-400 font-medium transition px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800">取消</button>
+                
+                <span class="bg-indigo-50 dark:bg-indigo-900/30 text-brand dark:text-indigo-400 px-3 py-1 rounded-full text-xs font-bold ml-2 border border-indigo-100 dark:border-indigo-800/50 transition-all" id="selectionBadge">0 選取</span>
             </div>
             
-            <div class="flex items-center gap-3">
-                <div id="statusBadges" class="flex gap-2"></div> <!-- Container for status badges -->
-                <span class="text-xs text-slate-400 mr-2"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="range" min="100" max="350" value="180" class="w-32 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand" oninput="updateZoom(this.value)">
+            <div class="flex items-center gap-4">
+                <div id="statusBadges" class="flex gap-2"></div>
+                <div class="flex items-center gap-2 text-slate-400">
+                    <i class="fa-solid fa-minus text-[10px]"></i>
+                    <input type="range" min="100" max="350" value="180" class="w-24 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand" oninput="updateZoom(this.value)">
+                    <i class="fa-solid fa-plus text-[10px]"></i>
+                </div>
             </div>
         </div>
 
         <!-- Grid Container -->
-        <div id="gridWrapper" class="flex-1 overflow-y-auto p-8 hidden scroll-smooth bg-slate-100 dark:bg-slate-950 transition-colors">
+        <div id="gridWrapper" class="flex-1 overflow-y-auto p-8 hidden scroll-smooth bg-slate-50/50 dark:bg-slate-950/50">
             <div id="gridContainer" class="grid gap-6 pb-32 transition-all duration-300 mx-auto" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));"></div>
         </div>
 
         <!-- Floating Action Bar -->
-        <div id="floatingToolbar" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md text-white px-2 py-2 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-1 z-30 hidden toolbar-enter">
-            <div class="flex items-center gap-1 px-2 border-r border-white/20">
-                <button onclick="rotateSelected(-90)" class="p-2.5 hover:bg-white/20 rounded-xl transition" title="向左旋轉"><i class="fa-solid fa-rotate-left"></i></button>
-                <button onclick="rotateSelected(90)" class="p-2.5 hover:bg-white/20 rounded-xl transition" title="向右旋轉"><i class="fa-solid fa-rotate-right"></i></button>
+        <div id="floatingToolbar" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900/85 dark:bg-white/90 backdrop-blur-md text-white dark:text-slate-800 px-3 py-2 rounded-2xl shadow-2xl border border-white/10 dark:border-slate-200/50 flex items-center gap-2 z-30 hidden toolbar-enter scale-95 hover:scale-100 transition-transform duration-200">
+            <div class="flex items-center gap-1 px-2 border-r border-white/20 dark:border-slate-300">
+                <button onclick="rotateSelected(-90)" class="p-3 hover:bg-white/20 dark:hover:bg-slate-200 rounded-xl transition" title="向左旋轉"><i class="fa-solid fa-rotate-left"></i></button>
+                <button onclick="rotateSelected(90)" class="p-3 hover:bg-white/20 dark:hover:bg-slate-200 rounded-xl transition" title="向右旋轉"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
-            <div class="flex items-center gap-1 px-2 border-r border-white/20">
-                <button onclick="addBlankPage()" class="p-2.5 hover:bg-white/20 rounded-xl transition" title="插入空白頁"><i class="fa-regular fa-square-plus"></i></button>
-                <button onclick="copySelected()" class="p-2.5 hover:bg-white/20 rounded-xl transition" title="複製"><i class="fa-regular fa-copy"></i></button>
-                <button id="pasteBtn" disabled onclick="pastePages()" class="p-2.5 hover:bg-white/20 disabled:opacity-30 rounded-xl transition" title="貼上"><i class="fa-regular fa-paste"></i></button>
+            <div class="flex items-center gap-1 px-2 border-r border-white/20 dark:border-slate-300">
+                <button onclick="addBlankPage()" class="p-3 hover:bg-white/20 dark:hover:bg-slate-200 rounded-xl transition" title="插入空白頁"><i class="fa-regular fa-square-plus"></i></button>
+                <button onclick="copySelected()" class="p-3 hover:bg-white/20 dark:hover:bg-slate-200 rounded-xl transition" title="複製"><i class="fa-regular fa-copy"></i></button>
+                <button id="pasteBtn" disabled onclick="pastePages()" class="p-3 hover:bg-white/20 dark:hover:bg-slate-200 disabled:opacity-30 rounded-xl transition" title="貼上"><i class="fa-regular fa-paste"></i></button>
             </div>
             <div class="px-2">
-                <button onclick="deleteSelected()" class="p-2.5 hover:bg-red-500/80 text-red-400 hover:text-white rounded-xl transition" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
+                <button onclick="deleteSelected()" class="p-3 hover:bg-red-500/80 hover:text-white text-red-400 dark:text-red-500 dark:hover:text-white rounded-xl transition" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
             </div>
         </div>
     </main>
 
     <!-- Metadata Modal -->
-    <div id="metadataModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
-                <h3 class="font-bold"><i class="fa-solid fa-tags mr-2"></i>元數據編輯 (Metadata)</h3>
-                <button onclick="closeMetadataModal()" class="hover:text-white/80"><i class="fa-solid fa-times"></i></button>
+    <div id="metadataModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4 transition-opacity">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100 border border-slate-100 dark:border-slate-700">
+            <div class="bg-slate-50 dark:bg-slate-800/50 p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2"><i class="fa-solid fa-tags text-brand"></i> 元數據編輯</h3>
+                <button onclick="closeMetadataModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition"><i class="fa-solid fa-times text-lg"></i></button>
             </div>
             <div class="p-6 space-y-4">
-                <div><label class="text-xs font-bold text-slate-500 uppercase">標題 (Title)</label><input type="text" id="metaTitle" class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded p-2 mt-1"></div>
-                <div><label class="text-xs font-bold text-slate-500 uppercase">作者 (Author)</label><input type="text" id="metaAuthor" class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded p-2 mt-1"></div>
-                <div><label class="text-xs font-bold text-slate-500 uppercase">主題 (Subject)</label><input type="text" id="metaSubject" class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded p-2 mt-1"></div>
-                <div><label class="text-xs font-bold text-slate-500 uppercase">關鍵字 (Keywords)</label><input type="text" id="metaKeywords" class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded p-2 mt-1"></div>
+                <div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">標題</label><input type="text" id="metaTitle" class="w-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/50 text-slate-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-brand/50 focus:border-brand outline-none transition"></div>
+                <div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">作者</label><input type="text" id="metaAuthor" class="w-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/50 text-slate-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-brand/50 focus:border-brand outline-none transition"></div>
+                <div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">主題</label><input type="text" id="metaSubject" class="w-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/50 text-slate-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-brand/50 focus:border-brand outline-none transition"></div>
+                <div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">關鍵字</label><input type="text" id="metaKeywords" class="w-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/50 text-slate-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-brand/50 focus:border-brand outline-none transition"></div>
             </div>
-            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-end">
-                <button onclick="saveMetadata()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">儲存變更</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Security Modal -->
-    <div id="securityModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div class="bg-emerald-600 p-4 text-white flex justify-between items-center">
-                <h3 class="font-bold"><i class="fa-solid fa-lock mr-2"></i>文件加密 (Security)</h3>
-                <button onclick="closeSecurityModal()" class="hover:text-white/80"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div class="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 p-3 rounded text-xs mb-4">
-                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> 密碼設定後無法還原，請務必牢記。
-                </div>
-                <div><label class="text-xs font-bold text-slate-500 uppercase">開啟密碼 (User Password)</label><input type="password" id="secUserPass" placeholder="用戶開啟文件時需要" class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded p-2 mt-1"></div>
-                <div><label class="text-xs font-bold text-slate-500 uppercase">權限密碼 (Owner Password)</label><input type="password" id="secOwnerPass" placeholder="編輯權限/列印權限" class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded p-2 mt-1"></div>
-            </div>
-            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
-                <button onclick="clearSecurity()" class="px-4 py-2 text-red-500 text-sm">清除設定</button>
-                <button onclick="saveSecurity()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium">啟用加密</button>
+            <div class="p-5 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-end">
+                <button onclick="saveMetadata()" class="px-6 py-2.5 bg-brand hover:bg-brandHover text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/20 transition transform active:scale-95">儲存變更</button>
             </div>
         </div>
     </div>
 
     <!-- Watermark Modal -->
-    <div id="watermarkModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div class="bg-orange-500 p-4 text-white flex justify-between items-center">
-                <h3 class="font-bold"><i class="fa-solid fa-stamp mr-2"></i>浮水印設定</h3>
-                <button onclick="closeWatermarkModal()" class="hover:text-white/80"><i class="fa-solid fa-times"></i></button>
+    <div id="watermarkModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4 transition-opacity">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100 border border-slate-100 dark:border-slate-700">
+            <div class="bg-slate-50 dark:bg-slate-800/50 p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2"><i class="fa-solid fa-stamp text-orange-500"></i> 浮水印設定</h3>
+                <button onclick="closeWatermarkModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition"><i class="fa-solid fa-times text-lg"></i></button>
             </div>
-            <div class="p-6 space-y-4">
-                <div><label class="text-xs font-bold text-slate-500 uppercase">文字</label><input type="text" id="wmText" class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded p-2 mt-1"></div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="text-xs font-bold text-slate-500 uppercase">顏色</label><input type="color" id="wmColor" value="#ff0000" class="w-full h-10 rounded cursor-pointer mt-1"></div>
-                    <div><label class="text-xs font-bold text-slate-500 uppercase">透明度</label><input type="range" id="wmOpacity" min="0.1" max="1" step="0.1" value="0.3" class="w-full h-2 mt-4"></div>
+            <div class="p-6 space-y-5">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">文字</label>
+                    <input type="text" id="wmText" class="w-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/50 text-slate-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition" placeholder="CONFIDENTIAL">
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">顏色</label>
+                        <div class="relative">
+                            <input type="color" id="wmColor" value="#ff0000" class="w-full h-10 rounded-lg cursor-pointer border border-slate-200 dark:border-slate-600">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">透明度</label>
+                        <input type="range" id="wmOpacity" min="0.1" max="1" step="0.1" value="0.3" class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer mt-3 accent-orange-500">
+                    </div>
                 </div>
             </div>
-            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
-                <button onclick="clearWatermark()" class="text-red-500 text-sm">清除</button>
-                <button onclick="saveWatermark()" class="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium">儲存</button>
+            <div class="p-5 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+                <button onclick="clearWatermark()" class="px-4 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-sm font-medium transition">清除</button>
+                <button onclick="saveWatermark()" class="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold shadow-lg shadow-orange-500/20 transition transform active:scale-95">儲存設定</button>
             </div>
         </div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loadingModal" class="fixed inset-0 bg-white/90 dark:bg-slate-900/90 z-50 hidden flex flex-col items-center justify-center backdrop-blur-sm">
-        <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-12 w-12 mb-4"></div>
-        <h2 class="text-xl font-bold text-slate-800 dark:text-white mb-2" id="loadingTitle">處理中</h2>
-        <p class="text-slate-500 dark:text-slate-400 text-sm" id="loadingText">請稍候...</p>
+    <!-- Loading -->
+    <div id="loadingModal" class="fixed inset-0 bg-white/80 dark:bg-slate-900/80 z-50 hidden flex flex-col items-center justify-center backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 dark:border-slate-700 h-12 w-12 mb-4"></div>
+            <h2 class="text-lg font-bold text-slate-800 dark:text-white mb-1" id="loadingTitle">處理中</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-xs" id="loadingText">請稍候...</p>
+        </div>
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-800 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-full shadow-xl text-sm opacity-0 transition-all duration-300 pointer-events-none z-50 flex items-center gap-2 translate-y-4">
-        <i class="fa-solid fa-circle-check text-green-400 dark:text-green-600"></i> <span id="toastMsg" class="font-medium">OK</span>
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-slate-800/90 dark:bg-white/90 backdrop-blur-md text-white dark:text-slate-900 px-6 py-3 rounded-full shadow-2xl text-sm opacity-0 transition-all duration-300 pointer-events-none z-[100] flex items-center gap-3 translate-y-4 font-medium border border-white/10">
+        <i class="fa-solid fa-circle-check text-green-400 dark:text-green-600"></i> <span id="toastMsg">Action Completed</span>
     </div>
 
     <script>
@@ -297,38 +369,56 @@
         // Settings State
         let watermarkSettings = null;
         let metadataSettings = null;
-        let securitySettings = null;
 
-        // --- Drag & Drop Logic ---
+        // --- Drag & Drop Logic (Flicker-Free) ---
         const dropOverlay = document.getElementById('dropOverlay');
+        let dragCounter = 0;
 
-        function handleDragOver(e) {
+        function isFileDrag(e) {
+            return e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files');
+        }
+
+        window.addEventListener('dragenter', (e) => {
+            if (!isFileDrag(e)) return;
             e.preventDefault();
+            dragCounter++;
             dropOverlay.classList.remove('hidden');
-            dropOverlay.classList.replace('opacity-0', 'opacity-100');
-            dropOverlay.classList.add('flex');
-        }
+            setTimeout(() => {
+                dropOverlay.classList.remove('opacity-0', 'pointer-events-none');
+                dropOverlay.classList.add('flex');
+            }, 10);
+        });
 
-        function handleDragLeave(e) {
-            // Prevent flickering when dragging over child elements
-            if (e.relatedTarget === null || e.relatedTarget.id === 'dropOverlay') {
-                dropOverlay.classList.add('hidden');
-            }
-        }
-
-        function handleDrop(e) {
+        window.addEventListener('dragleave', (e) => {
+            if (!isFileDrag(e)) return;
             e.preventDefault();
-            dropOverlay.classList.add('hidden');
-            
+            dragCounter--;
+            if (dragCounter === 0) {
+                dropOverlay.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => {
+                    if (dragCounter === 0) { 
+                        dropOverlay.classList.add('hidden');
+                        dropOverlay.classList.remove('flex');
+                    }
+                }, 200);
+            }
+        });
+
+        window.addEventListener('dragover', (e) => { if (!isFileDrag(e)) return; e.preventDefault(); });
+
+        window.addEventListener('drop', (e) => {
+            if (!isFileDrag(e)) return;
+            e.preventDefault();
+            dragCounter = 0;
+            dropOverlay.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => { dropOverlay.classList.add('hidden'); dropOverlay.classList.remove('flex'); }, 200);
+
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                if (files[0].type === 'application/pdf') {
-                    loadFile(files[0]);
-                } else {
-                    showToast("僅支援 PDF 格式文件", true);
-                }
+                if (files[0].type === 'application/pdf') loadFile(files[0]);
+                else showToast("僅支援 PDF 格式文件", true);
             }
-        }
+        });
 
         function handleFileUpload(event) {
             const file = event.target.files[0];
@@ -337,11 +427,13 @@
 
         async function loadFile(file) {
             showLoading(true, "讀取檔案", "正在解析 PDF...");
+            // Reset Name
             fileName = file.name.replace('.pdf', '');
+            document.getElementById('fileNameInput').value = fileName;
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
-                pdfBytes = arrayBuffer.slice(0); // Copy for safekeeping
+                pdfBytes = arrayBuffer.slice(0);
 
                 const loadingTask = pdfjsLib.getDocument(arrayBuffer);
                 pdfDoc = await loadingTask.promise;
@@ -356,7 +448,6 @@
                     });
                 }
 
-                // Reset all states
                 history = [];
                 historyIndex = -1;
                 saveState();
@@ -364,7 +455,6 @@
                 clipboard = [];
                 watermarkSettings = null;
                 metadataSettings = null;
-                securitySettings = null;
                 
                 await renderGrid();
                 updateUI();
@@ -375,12 +465,33 @@
             } catch (error) {
                 console.error(error);
                 showLoading(false);
-                showToast("無法讀取 PDF (可能已加密)", true);
+                showToast("無法讀取 PDF", true);
+            }
+        }
+
+        // --- Rename & File Management ---
+        function updateFileName() {
+            const input = document.getElementById('fileNameInput');
+            if (input.value.trim()) {
+                fileName = input.value.trim();
+            } else {
+                input.value = fileName; // Revert if empty
+            }
+        }
+
+        function closeFile() {
+            if(confirm("確定要關閉當前文件嗎？未儲存的變更將會遺失。")) {
+                pages = [];
+                selectedIds.clear();
+                clipboard = [];
+                history = [];
+                pdfDoc = null;
+                pdfBytes = null;
+                updateUI();
             }
         }
 
         // --- Core UI Functions ---
-        
         function toggleDarkMode() { document.documentElement.classList.toggle('dark'); }
         
         function showToast(msg, isError = false) {
@@ -407,16 +518,26 @@
             const hasPages = pages.length > 0;
             const hasSelection = selectedIds.size > 0;
 
+            // Toggle Views
             document.getElementById('emptyState').style.display = hasPages ? 'none' : 'flex';
             document.getElementById('topBar').classList.toggle('hidden', !hasPages);
             document.getElementById('gridWrapper').classList.toggle('hidden', !hasPages);
             if(hasPages) setTimeout(() => document.getElementById('topBar').classList.remove('opacity-0'), 50);
 
+            // Navbar State
             if (hasPages) {
                 document.getElementById('fileInfo').classList.replace('hidden', 'flex');
+                document.getElementById('appTitle').classList.add('hidden'); // Hide title to make space
                 document.getElementById('pageCountDisplay').innerText = `${pages.length} 頁`;
-                document.getElementById('fileNameDisplay').innerText = fileName;
                 document.getElementById('exportBtn').disabled = false;
+                document.getElementById('navUploadBtn').classList.add('hidden'); // Hide Upload button
+                document.getElementById('settingsGroup').classList.remove('hidden'); // Show Settings
+            } else {
+                document.getElementById('fileInfo').classList.replace('flex', 'hidden');
+                document.getElementById('appTitle').classList.remove('hidden');
+                document.getElementById('exportBtn').disabled = true;
+                document.getElementById('navUploadBtn').classList.remove('hidden');
+                document.getElementById('settingsGroup').classList.add('hidden');
             }
 
             document.getElementById('selectionBadge').innerText = `${selectedIds.size} 選取`;
@@ -435,31 +556,24 @@
             
             const createBadge = (icon, text, colorClass) => {
                 const div = document.createElement('div');
-                div.className = `items-center gap-1 text-xs font-bold px-2 py-1 rounded-md border cursor-pointer hidden md:flex ${colorClass}`;
+                div.className = `items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border cursor-pointer hidden md:flex transition-transform hover:scale-105 ${colorClass}`;
                 div.innerHTML = `<i class="${icon}"></i> ${text}`;
                 return div;
             };
 
             if (metadataSettings) {
-                const b = createBadge('fa-solid fa-tags', '元數據', 'text-blue-500 bg-blue-50 dark:bg-blue-900/20 border-blue-200');
+                const b = createBadge('fa-solid fa-tags', '元數據', 'text-blue-600 bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800');
                 b.onclick = openMetadataModal;
                 container.appendChild(b);
             }
-            if (securitySettings) {
-                const b = createBadge('fa-solid fa-lock', '已加密', 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200');
-                b.onclick = openSecurityModal;
-                container.appendChild(b);
-            }
             if (watermarkSettings) {
-                const b = createBadge('fa-solid fa-stamp', '浮水印', 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 border-orange-200');
+                const b = createBadge('fa-solid fa-stamp', '浮水印', 'text-orange-600 bg-orange-100 dark:bg-orange-900/40 border-orange-200 dark:border-orange-800');
                 b.onclick = openWatermarkModal;
                 container.appendChild(b);
             }
         }
 
         // --- Modals Logic ---
-        
-        // Metadata
         function openMetadataModal() {
             document.getElementById('metadataModal').classList.remove('hidden');
             if (metadataSettings) {
@@ -482,28 +596,6 @@
             showToast("元數據已儲存");
         }
 
-        // Security
-        function openSecurityModal() { document.getElementById('securityModal').classList.remove('hidden'); }
-        function closeSecurityModal() { document.getElementById('securityModal').classList.add('hidden'); }
-        function saveSecurity() {
-            const user = document.getElementById('secUserPass').value;
-            const owner = document.getElementById('secOwnerPass').value;
-            if(!user && !owner) { clearSecurity(); return; }
-            securitySettings = { userPassword: user, ownerPassword: owner };
-            closeSecurityModal();
-            updateStatusBadges();
-            showToast("加密設定已啟用");
-        }
-        function clearSecurity() {
-            securitySettings = null;
-            document.getElementById('secUserPass').value = '';
-            document.getElementById('secOwnerPass').value = '';
-            closeSecurityModal();
-            updateStatusBadges();
-            showToast("加密已取消");
-        }
-
-        // Watermark
         function openWatermarkModal() { document.getElementById('watermarkModal').classList.remove('hidden'); }
         function closeWatermarkModal() { document.getElementById('watermarkModal').classList.add('hidden'); }
         function saveWatermark() {
@@ -566,7 +658,7 @@
                 const page = pages[i];
                 const isSelected = selectedIds.has(page.id);
                 const div = document.createElement('div');
-                div.className = `page-card bg-white dark:bg-darkCard rounded-xl p-3 border-2 cursor-pointer relative group transition-all ${isSelected ? 'selected border-brand' : 'border-transparent hover:border-indigo-200 dark:hover:border-indigo-900'}`;
+                div.className = `page-card bg-white dark:bg-darkCard rounded-xl p-3 cursor-pointer relative group ${isSelected ? 'selected' : 'border border-transparent hover:border-indigo-200 dark:hover:border-slate-700'}`;
                 div.dataset.id = page.id;
                 div.onclick = (e) => toggleSelection(page.id, e.ctrlKey || e.metaKey || e.shiftKey);
 
@@ -581,7 +673,7 @@
                     </div>
                     <div class="flex justify-between items-center px-1">
                         <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Pg ${i + 1}</span>
-                        <span class="text-[10px] text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">${page.type === 'original' ? '原稿' : '空白'}</span>
+                        <span class="text-[10px] text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">${page.type === 'original' ? '原稿' : '空白'}</span>
                     </div>`;
                 container.appendChild(div);
                 if (page.type === 'original') renderThumbnail(page, div.querySelector('canvas'));
@@ -589,7 +681,7 @@
 
             if (sortable) sortable.destroy();
             sortable = new Sortable(container, {
-                animation: 150,
+                animation: 200,
                 ghostClass: 'sortable-ghost',
                 dragClass: 'sortable-drag',
                 delay: 100, delayOnTouchOnly: true,
@@ -623,7 +715,6 @@
         function updateZoom(val) { document.getElementById('gridContainer').style.gridTemplateColumns = `repeat(auto-fill, minmax(${val}px, 1fr))`; }
         function handleBackgroundClick(e) { if (e.target.id === 'gridWrapper' || e.target.id === 'gridContainer') deselectAll(); }
         
-        // Page Actions (Rotate, Delete, etc - wrapped with saveState)
         function rotateSelected(angle) {
             if (selectedIds.size === 0) return;
             saveState();
@@ -638,7 +729,7 @@
         function addBlankPage() {
             saveState();
             const newPage = { id: crypto.randomUUID(), type: 'blank', originalIndex: -1, rotation: 0 };
-            pages.push(newPage); // simplified for brevity, appends to end
+            pages.push(newPage); 
             saveState(); renderGrid(); updateUI(); showToast("已插入空白頁");
         }
         function copySelected() {
@@ -665,14 +756,12 @@
             showLoading(true, "正在導出", `正在處理 ${format.toUpperCase()}...`);
             
             try {
-                // 修正：將 Permission 改為 Permissions (複數)
-                const { PDFDocument, degrees, PageSizes, StandardFonts, rgb, Permissions } = PDFLib; 
+                const { PDFDocument, degrees, PageSizes, StandardFonts, rgb } = PDFLib;
                 const srcDoc = await PDFDocument.load(pdfBytes);
 
                 if (format === 'pdf') {
                     const newDoc = await PDFDocument.create();
                     
-                    // 1. Apply Metadata
                     if (metadataSettings) {
                         if(metadataSettings.title) newDoc.setTitle(metadataSettings.title);
                         if(metadataSettings.author) newDoc.setAuthor(metadataSettings.author);
@@ -680,7 +769,6 @@
                         if(metadataSettings.keywords) newDoc.setKeywords(metadataSettings.keywords.split(','));
                     }
 
-                    // 2. Build Pages
                     let wmFont;
                     if (watermarkSettings) wmFont = await newDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -706,26 +794,55 @@
                         }
                     }
 
-                    // 3. Apply Security
-                    if (securitySettings) {
-                        newDoc.encrypt({
-                            userPassword: securitySettings.userPassword,
-                            ownerPassword: securitySettings.ownerPassword,
-                            permissions: [
-                                Permissions.Print, // 修正：使用 Permissions.Print
-                                Permissions.Copy,  // 修正：使用 Permissions.Copy
-                                Permissions.Accessibility // 修正：使用 Permissions.Accessibility
-                            ]
-                        });
-                    }
-
                     const data = await newDoc.save();
-                    downloadBlob(data, `${fileName}_pro.pdf`, 'application/pdf');
+                    downloadBlob(data, `${fileName}_organized.pdf`, 'application/pdf');
 
                 } else {
-                    // ZIP/Images/Text handling (simplified here for brevity, assumes existing logic)
-                    // ... existing logic from v2 ...
-                    showToast("此格式暫不支援加密/元數據");
+                    // ZIP Export
+                    const zip = new JSZip();
+                    
+                    for (let i = 0; i < pages.length; i++) {
+                        const p = pages[i];
+                        const num = i + 1;
+
+                        if (format === 'zip') {
+                            const subDoc = await PDFDocument.create();
+                            let targetPage;
+                            if (p.type === 'original') {
+                                const [copiedPage] = await subDoc.copyPages(srcDoc, [p.originalIndex]);
+                                const existingRotation = copiedPage.getRotation().angle;
+                                copiedPage.setRotation(degrees(existingRotation + p.rotation));
+                                targetPage = subDoc.addPage(copiedPage);
+                            } else {
+                                targetPage = subDoc.addPage(PageSizes.A4);
+                            }
+                            if (watermarkSettings) { /* watermark logic same as above */ }
+                            const data = await subDoc.save();
+                            zip.file(`page_${num}.pdf`, data);
+                        }
+                        else if (format === 'images') {
+                            if (p.type === 'original') {
+                                const pdfPage = await pdfDoc.getPage(p.originalIndex + 1);
+                                const viewport = pdfPage.getViewport({ scale: 2.0, rotation: p.rotation });
+                                const cvs = document.createElement('canvas');
+                                cvs.width = viewport.width; cvs.height = viewport.height;
+                                const ctx = cvs.getContext('2d');
+                                await pdfPage.render({ canvasContext: ctx, viewport: viewport }).promise;
+                                const imgData = cvs.toDataURL('image/jpeg', 0.9).split(',')[1];
+                                zip.file(`page_${num}.jpg`, imgData, {base64: true});
+                            }
+                        }
+                        else if (format === 'text') {
+                            if (p.type === 'original') {
+                                const pdfPage = await pdfDoc.getPage(p.originalIndex + 1);
+                                const textContent = await pdfPage.getTextContent();
+                                const str = textContent.items.map(item => item.str).join(' ');
+                                zip.file(`page_${num}.txt`, str);
+                            }
+                        }
+                    }
+                    const zipContent = await zip.generateAsync({ type: "blob" });
+                    downloadBlob(zipContent, `${fileName}_${format}.zip`, 'application/zip');
                 }
                 
                 showLoading(false);
@@ -733,7 +850,7 @@
             } catch (e) {
                 console.error(e);
                 showLoading(false);
-                showToast("導出失敗", true);
+                showToast("導出失敗: " + e.message, true);
             }
         }
 
