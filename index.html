@@ -71,29 +71,33 @@
             --zoom-thumb-size: 16px;
         }
         
+        /* ✅ FIXED: Grid Zoom Container */
         .grid-zoom-container {
             display: grid;
             grid-template-columns: repeat(var(--col-count), 1fr);
             gap: 24px;
-            width: 100%;
+            width: calc(100% - 2rem);
+            max-width: calc(100% - 2rem);
             margin: 0 auto;
             transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            padding: 0 1rem;
         }
         
         .grid-zoom-container[data-columns="1"] {
-            max-width: 850px;
+            max-width: calc(850px - 2rem);
             gap: 40px;
         }
         
         .grid-zoom-container[data-columns="2"] {
-            max-width: 1200px;
+            max-width: calc(1200px - 2rem);
             gap: 28px;
         }
         
         .grid-zoom-container[data-columns="3"],
         .grid-zoom-container[data-columns="4"],
         .grid-zoom-container[data-columns="5"] {
-            max-width: 100%;
+            width: calc(100% - 2rem);
+            max-width: calc(100% - 2rem);
             gap: 24px;
         }
         
@@ -156,9 +160,19 @@
         
         /* Dark mode overrides */
         .dark .page-card.bg-white { background-color: #1e293b; }
+
+        /* ✅ NEW: Floating Toolbar Margin Fix */
+        #floatingToolbar {
+            margin: 0 1rem; /* Keep within bounds */
+        }
+
+        /* ✅ NEW: Prevent any horizontal overflow */
+        .overflow-safe {
+            overflow-x-hidden !important;
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col text-slate-700 bg-slate-50 dark:bg-darkSurface dark:text-slate-300 transition-colors duration-300">
+<body class="h-screen flex flex-col text-slate-700 bg-slate-50 dark:bg-darkSurface dark:text-slate-300 transition-colors duration-300 overflow-x-hidden">
 
     <!-- Drop Zone -->
     <div id="dropOverlay" class="fixed inset-0 z-[100] bg-brand/90 dark:bg-indigo-950/90 hidden flex-col items-center justify-center opacity-0 pointer-events-none">
@@ -234,7 +248,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col relative overflow-hidden" id="mainArea">
+    <main class="flex-1 flex flex-col relative overflow-hidden pr-4 overflow-safe" id="mainArea">
         <!-- Empty State -->
         <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-0 px-4">
             <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-12 rounded-3xl border border-slate-200 dark:border-slate-700 text-center max-w-lg w-full transition-all hover:shadow-xl">
@@ -279,7 +293,7 @@
         </div>
 
         <!-- Grid -->
-        <div id="gridWrapper" class="flex-1 overflow-y-auto p-8 hidden scroll-smooth bg-slate-50/50 dark:bg-slate-950/50">
+        <div id="gridWrapper" class="flex-1 overflow-y-auto overflow-x-hidden p-8 pr-2 pl-6 pb-8 hidden scroll-smooth overflow-safe bg-slate-50/50 dark:bg-slate-950/50">
             <div id="gridContainer" class="grid-zoom-container" style="--col-count: 3" data-columns="3"></div>
         </div>
 
@@ -619,6 +633,7 @@
                     pageNumberSpan.textContent = `Pg ${index + 1}`;
                 }
             });
+            updateSelectionStates();
         }
 
         async function handleFiles(fileList) {
