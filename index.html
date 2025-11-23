@@ -71,34 +71,46 @@
             --zoom-thumb-size: 16px;
         }
         
-        /* ✅ FIXED: Grid Zoom Container */
+        /* ✅ FIXED: Grid Zoom Container - Viewport Safe */
         .grid-zoom-container {
             display: grid;
             grid-template-columns: repeat(var(--col-count), 1fr);
             gap: 24px;
-            width: calc(100% - 2rem);
-            max-width: calc(100% - 2rem);
+            width: 100%;
+            max-width: calc(100vw - 2rem);
             margin: 0 auto;
             transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            padding: 0 1rem;
+            padding: 1rem;
+            box-sizing: border-box;
         }
         
         .grid-zoom-container[data-columns="1"] {
-            max-width: calc(850px - 2rem);
-            gap: 40px;
+            max-width: calc(100vw - 2rem);
+            gap: 32px;
         }
         
         .grid-zoom-container[data-columns="2"] {
-            max-width: calc(1200px - 2rem);
+            max-width: calc(100vw - 2rem);
             gap: 28px;
         }
         
         .grid-zoom-container[data-columns="3"],
         .grid-zoom-container[data-columns="4"],
         .grid-zoom-container[data-columns="5"] {
-            width: calc(100% - 2rem);
-            max-width: calc(100% - 2rem);
+            width: 100%;
+            max-width: calc(100vw - 2rem);
             gap: 24px;
+        }
+        
+        /* Responsive gap scaling */
+        @media (max-width: 768px) {
+            .grid-zoom-container {
+                padding: 0.5rem;
+            }
+            .grid-zoom-container[data-columns="4"],
+            .grid-zoom-container[data-columns="5"] {
+                gap: 16px;
+            }
         }
         
         /* Zoom Controls */
@@ -148,10 +160,48 @@
         .zoom-label.active { color: #6366f1; font-weight: 700; }
         .dark .zoom-label.active { color: #6366f1; }
 
-        /* Enhanced Page Card */
-        .page-card { width: 100%; position: relative; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
-        .grid-zoom-container[data-columns="1"] .page-card { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
-        .grid-zoom-container[data-columns="1"] .page-card:hover { transform: translateY(-4px); }
+        /* ✅ ENHANCED Page Card - Viewport Safe */
+        .page-card { 
+            width: 100%; 
+            position: relative; 
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            max-height: calc(100vh - 200px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        
+        .page-card .content-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+        }
+        
+        .page-card canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .grid-zoom-container[data-columns="1"] .page-card { 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
+            max-height: calc(100vh - 150px);
+        }
+        
+        .grid-zoom-container[data-columns="1"] .page-card:hover { 
+            transform: translateY(-4px); 
+        }
+        
+        /* Responsive height adjustments */
+        @media (max-height: 700px) {
+            .page-card { max-height: calc(100vh - 150px); }
+        }
+        @media (max-height: 600px) {
+            .page-card { max-height: calc(100vh - 120px); }
+        }
 
         /* Sortable Styles */
         .sortable-ghost { opacity: 0.8; background: linear-gradient(135deg, #6366f115 0%, #818cf815 100%); border: 2px solid #6366f1; border-radius: 0.75rem; transform: scale(1.08); z-index: 1000; }
@@ -248,7 +298,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col relative overflow-hidden pr-4 overflow-safe" id="mainArea">
+    <main class="flex-1 flex flex-col relative overflow-hidden pr-4 overflow-safe" id="mainArea" style="height: calc(100vh - 64px); max-height: calc(100vh - 64px);">
         <!-- Empty State -->
         <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-0 px-4">
             <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-12 rounded-3xl border border-slate-200 dark:border-slate-700 text-center max-w-lg w-full transition-all hover:shadow-xl">
@@ -293,7 +343,7 @@
         </div>
 
         <!-- Grid -->
-        <div id="gridWrapper" class="flex-1 overflow-y-auto overflow-x-hidden p-8 pr-2 pl-6 pb-8 hidden scroll-smooth overflow-safe bg-slate-50/50 dark:bg-slate-950/50">
+        <div id="gridWrapper" class="flex-1 overflow-y-auto overflow-x-hidden p-8 pr-2 pl-6 pb-8 hidden scroll-smooth overflow-safe bg-slate-50/50 dark:bg-slate-950/50" style="max-height: calc(100vh - 100px); height: calc(100vh - 100px); scroll-behavior: smooth; overscroll-behavior: contain;">
             <div id="gridContainer" class="grid-zoom-container" style="--col-count: 3" data-columns="3"></div>
         </div>
 
@@ -421,6 +471,30 @@
             4: { cols: 1, label: "閱讀模式" }
         };
 
+        // ✅ NEW: Viewport-Aware Scaling Function
+        function getOptimalScale() {
+            const viewportHeight = window.innerHeight;
+            const viewportWidth = window.innerWidth;
+            const columns = parseInt(gridContainer.getAttribute('data-columns') || 3);
+            
+            let scale = 0.5; // default
+            
+            if (columns === 1) {
+                // Reading mode: larger, but fit in viewport
+                scale = Math.min(1.8, viewportHeight / 850);
+            } else if (columns === 2) {
+                scale = Math.min(0.9, viewportHeight / 600);
+            } else if (columns === 3) {
+                scale = Math.min(0.6, viewportHeight / 500);
+            } else if (columns === 4) {
+                scale = Math.min(0.45, viewportHeight / 450);
+            } else if (columns === 5) {
+                scale = Math.min(0.35, viewportHeight / 400);
+            }
+            
+            return Math.max(scale, 0.25); // minimum readability
+        }
+
         function getMostVisiblePage() {
             const viewportRect = gridWrapper.getBoundingClientRect();
             const pages = document.querySelectorAll('.page-card');
@@ -494,6 +568,8 @@
                         anchorPage.scrollIntoView({ behavior: 'auto', block: 'center' });
                     }, 0);
                 }
+                // ✅ Re-render thumbnails after zoom change
+                setTimeout(reRenderVisibleThumbnails, 100);
             });
             zoomSlider.addEventListener('change', () => {
                 setTimeout(reRenderVisibleThumbnails, 100);
@@ -716,7 +792,7 @@
             el.onclick = (e) => toggleSelect(p.id, e.ctrlKey || e.metaKey);
             
             el.innerHTML = `
-                <div class="relative bg-slate-100 rounded mb-2 overflow-hidden flex items-center justify-center shadow-lg border border-slate-200 dark:border-slate-700 h-full">
+                <div class="relative bg-slate-100 rounded mb-2 overflow-hidden flex items-center justify-center shadow-lg border border-slate-200 dark:border-slate-700 h-full content-area">
                     <div class="w-full h-full flex items-center justify-center">
                         <canvas id="cvs-${p.id}" class="max-w-full max-h-full object-contain"></canvas>
                     </div>
@@ -732,6 +808,7 @@
             return el;
         }
 
+        // ✅ ENHANCED: Viewport-Aware Thumbnail Rendering
         async function renderThumbnail(p, forceHighQuality = false) {
             const cvs = document.getElementById(`cvs-${p.id}`);
             if (!cvs || p.type === 'blank') return;
@@ -739,17 +816,10 @@
             if (!file) return;
 
             try {
-                let scale = 0.3;
-                const currentCols = gridContainer.getAttribute('data-columns');
-                if (currentCols === '1') { scale = 1.5; } 
-                else if (currentCols === '2') { scale = 0.8; }
-                else if (currentCols === '3') { scale = 0.5; } 
-                else if (currentCols === '4') { scale = 0.4; }
-                else if (currentCols === '5') { scale = 0.3; }
+                // ✅ Use dynamic scaling based on viewport and columns
+                const scale = getOptimalScale();
                 
-                if (forceHighQuality) { scale = Math.max(scale, 2.0); }
-                
-                // ✅ 改进缓存 key
+                // Cache key includes dynamic scale
                 const renderKey = `${p.fileId}-${p.pageIndex}-${scale}-${p.rotation}-${p.type}`;
                 if (cvs.dataset.lastRender === renderKey && !forceHighQuality) return;
 
@@ -760,58 +830,84 @@
                     const page = await file.pdfDoc.getPage(p.pageIndex + 1);
                     const viewport = page.getViewport({ scale: scale, rotation: p.rotation });
                     
-                    if (cvs.width !== viewport.width || cvs.height !== viewport.height) {
-                        cvs.width = viewport.width;
-                        cvs.height = viewport.height;
+                    // ✅ Ensure canvas fits in container
+                    const columns = parseInt(gridContainer.getAttribute('data-columns') || 3);
+                    const maxWidth = (gridWrapper.clientWidth - 48) / columns - 20;
+                    const maxHeight = window.innerHeight - 200;
+                    
+                    let finalWidth = viewport.width;
+                    let finalHeight = viewport.height;
+                    
+                    if (finalWidth > maxWidth) {
+                        const ratio = maxWidth / finalWidth;
+                        finalWidth *= ratio;
+                        finalHeight *= ratio;
                     }
-
-                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                    if (finalHeight > maxHeight) {
+                        const ratio = maxHeight / finalHeight;
+                        finalWidth *= ratio;
+                        finalHeight *= ratio;
+                    }
+                    
+                    cvs.width = finalWidth;
+                    cvs.height = finalHeight;
+                    
+                    const renderViewport = page.getViewport({ scale: scale * (finalWidth / viewport.width), rotation: p.rotation });
+                    await page.render({ canvasContext: ctx, viewport: renderViewport }).promise;
+                    
                 } else if (p.type === 'image') {
                     const img = new Image();
                     const blob = new Blob([file.data], {type: file.mime});
                     img.src = URL.createObjectURL(blob);
                     
-                    await new Promise((resolve, reject) => { 
+                    await new Promise((resolve, reject) => {
                         img.onload = () => {
-                            URL.revokeObjectURL(img.src); // ✅ 释放内存
+                            URL.revokeObjectURL(img.src);
+                            
+                            const columns = parseInt(gridContainer.getAttribute('data-columns') || 3);
+                            const maxWidth = (gridWrapper.clientWidth - 48) / columns - 20;
+                            const maxHeight = window.innerHeight - 200;
+                            
+                            let finalWidth = img.width * scale;
+                            let finalHeight = img.height * scale;
+                            
+                            if (p.rotation % 180 !== 0) {
+                                [finalWidth, finalHeight] = [finalHeight, finalWidth];
+                            }
+                            
+                            if (finalWidth > maxWidth || finalHeight > maxHeight) {
+                                const ratio = Math.min(maxWidth / finalWidth, maxHeight / finalHeight);
+                                finalWidth *= ratio;
+                                finalHeight *= ratio;
+                            }
+                            
+                            cvs.width = finalWidth;
+                            cvs.height = finalHeight;
+                            
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);
+                            ctx.translate(cvs.width / 2, cvs.height / 2);
+                            ctx.rotate(p.rotation * Math.PI / 180);
+                            ctx.drawImage(img, -finalWidth / 2, -finalHeight / 2, finalWidth, finalHeight);
+                            
                             resolve();
-                        }; 
-                        img.onerror = () => reject(); 
-                        setTimeout(reject, 3000); 
+                        };
+                        img.onerror = reject;
+                        setTimeout(reject, 3000);
                     });
-
-                    const finalScale = Math.min(scale, 1);
-                    let w, h;
-                    if (p.rotation % 180 !== 0) { 
-                        w = img.height * finalScale; 
-                        h = img.width * finalScale; 
-                    } else { 
-                        w = img.width * finalScale; 
-                        h = img.height * finalScale; 
-                    }
-                    
-                    if (cvs.width !== w || cvs.height !== h) { 
-                        cvs.width = w; 
-                        cvs.height = h; 
-                    }
-                    
-                    ctx.translate(cvs.width / 2, cvs.height / 2);
-                    ctx.rotate(p.rotation * Math.PI / 180);
-                    ctx.drawImage(img, -img.width * finalScale / 2, -img.height * finalScale / 2, img.width * finalScale, img.height * finalScale);
                 }
                 
                 cvs.dataset.lastRender = renderKey;
 
-            } catch(e) {
+            } catch (e) {
                 console.warn(`Failed to render page ${p.id}:`, e);
                 const ctx = cvs.getContext('2d');
                 ctx.fillStyle = '#f1f5f9';
-                ctx.fillRect(0, 0, cvs.width, cvs.height);
+                ctx.fillRect(0, 0, 100, 140);
                 ctx.fillStyle = '#64748b';
                 ctx.font = 'bold 12px Inter';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(p.type === 'pdf' ? 'PDF' : 'IMG', cvs.width/2, cvs.height/2);
+                ctx.fillText(p.type === 'pdf' ? 'PDF' : 'IMG', 50, 70);
             }
         }
 
@@ -939,7 +1035,7 @@
             recordHistory(); 
             pages.reverse(); 
             updateAllPageNumbers(); 
-            showToast("順序已反轉"); 
+            showToast("順序已反轉");
         }
         
         function closeAllFiles() { 
@@ -956,18 +1052,6 @@
                 updateUI(); 
                 showToast("已關閉所有文件");
             } 
-        }
-
-        // ✅ 新增：更新现有卡片状态（替换未定义的 updateExistingCards）
-        function updateAllPageNumbers() {
-            const container = gridContainer;
-            Array.from(container.children).forEach((child, index) => {
-                const pageNumberSpan = child.querySelector('span:first-child');
-                if (pageNumberSpan) {
-                    pageNumberSpan.textContent = `Pg ${index + 1}`;
-                }
-            });
-            updateSelectionStates();
         }
 
         function recordHistory() {
