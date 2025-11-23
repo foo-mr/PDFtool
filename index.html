@@ -1022,14 +1022,41 @@
         }
         
         function pastePages() { 
-            if (!clipboard.length) return; 
-            recordHistory(); 
-            const newItems = clipboard.map(p => ({...p, id: crypto.randomUUID()})); 
-            pages.push(...newItems); 
-            renderGrid(true); 
-            updateUI(); 
-            showToast(`已貼上 ${newItems.length} 項`);
+    if (!clipboard.length) return; 
+    recordHistory(); 
+    
+    // 找出當前選中的頁面位置
+    const selectedIndices = [];
+    pages.forEach((p, index) => {
+        if (selectedIds.has(p.id)) {
+            selectedIndices.push(index);
         }
+    });
+    
+    // 如果有選中的頁面，插入到最後一個選中頁面之後
+    // 如果沒有選中的頁面，插入到開頭
+    let insertIndex;
+    if (selectedIndices.length > 0) {
+        insertIndex = Math.max(...selectedIndices) + 1;
+    } else {
+        insertIndex = 0;
+    }
+    
+    // 創建新的項目
+    const newItems = clipboard.map(p => ({...p, id: crypto.randomUUID()}));
+    
+    // 使用 splice 插入到指定位置
+    pages.splice(insertIndex, 0, ...newItems);
+    
+    // 清除選擇並選擇新貼上的頁面
+    selectedIds.clear();
+    newItems.forEach(item => selectedIds.add(item.id));
+    
+    renderGrid(true); 
+    updateUI(); 
+    updateSelectionStates();
+    showToast(`已貼上 ${newItems.length} 項`);
+}
         
         function reverseOrder() { 
             recordHistory(); 
