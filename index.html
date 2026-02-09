@@ -33,6 +33,8 @@
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <!-- FileSaver for reliable downloads -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <style>
         body { font-family: 'Inter', sans-serif; overflow: hidden; }
@@ -71,7 +73,6 @@
             --zoom-thumb-size: 16px;
         }
         
-        /* ✅ FIXED: Grid Zoom Container - Viewport Safe */
         .grid-zoom-container {
             display: grid;
             grid-template-columns: repeat(var(--col-count), 1fr);
@@ -84,63 +85,37 @@
             box-sizing: border-box;
         }
         
-        .grid-zoom-container[data-columns="1"] {
-            max-width: calc(100vw - 2rem);
-            gap: 32px;
-        }
-        
-        .grid-zoom-container[data-columns="2"] {
-            max-width: calc(100vw - 2rem);
-            gap: 28px;
-        }
-        
+        .grid-zoom-container[data-columns="1"] { max-width: calc(100vw - 2rem); gap: 32px; }
+        .grid-zoom-container[data-columns="2"] { max-width: calc(100vw - 2rem); gap: 28px; }
         .grid-zoom-container[data-columns="3"],
         .grid-zoom-container[data-columns="4"],
-        .grid-zoom-container[data-columns="5"] {
-            width: 100%;
-            max-width: calc(100vw - 2rem);
-            gap: 24px;
-        }
+        .grid-zoom-container[data-columns="5"] { width: 100%; max-width: calc(100vw - 2rem); gap: 24px; }
         
-        /* Responsive gap scaling */
         @media (max-width: 768px) {
-            .grid-zoom-container {
-                padding: 0.5rem;
-            }
+            .grid-zoom-container { padding: 0.5rem; }
             .grid-zoom-container[data-columns="4"],
-            .grid-zoom-container[data-columns="5"] {
-                gap: 16px;
-            }
+            .grid-zoom-container[data-columns="5"] { gap: 16px; }
         }
         
-        /* Zoom Controls */
         .zoom-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            dark:bg:rgba(30, 30, 30, 0.8);
-            dark:border:rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 8px 12px;
+            border-radius: 12px; padding: 8px 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
+        .dark .zoom-controls { background: rgba(30, 30, 30, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); }
 
         .zoom-icon { color: #64748b; font-size: 0.875rem; transition: all 0.2s ease; }
         .dark .zoom-icon { color: #94a3b8; }
         .zoom-icon.active { color: #6366f1; transform: scale(1.1); }
-        .dark .zoom-icon.active { color: #6366f1; }
 
         .slider-container { position: relative; width: 140px; display: flex; align-items: center; }
         
         .slider-background {
             position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%);
-            height: var(--zoom-track-height);
-            background: #cbd5e1;
-            border-radius: var(--zoom-track-height);
-            z-index: 1;
+            height: var(--zoom-track-height); background: #cbd5e1;
+            border-radius: var(--zoom-track-height); z-index: 1;
         }
         .dark .slider-background { background: #475569; }
 
@@ -158,68 +133,29 @@
         .zoom-label { min-width: 70px; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.75rem; font-weight: 600; color: #64748b; transition: all 0.2s ease; }
         .dark .zoom-label { color: #94a3b8; }
         .zoom-label.active { color: #6366f1; font-weight: 700; }
-        .dark .zoom-label.active { color: #6366f1; }
 
-        /* ✅ ENHANCED Page Card - Viewport Safe */
         .page-card { 
-            width: 100%; 
-            position: relative; 
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            max-height: calc(100vh - 200px);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
+            width: 100%; position: relative; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            max-height: calc(100vh - 200px); overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;
         }
         
-        .page-card .content-area {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 0;
-        }
+        .page-card .content-area { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+        .page-card canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
         
-        .page-card canvas {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
+        .grid-zoom-container[data-columns="1"] .page-card { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); max-height: calc(100vh - 150px); }
+        .grid-zoom-container[data-columns="1"] .page-card:hover { transform: translateY(-4px); }
         
-        .grid-zoom-container[data-columns="1"] .page-card { 
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
-            max-height: calc(100vh - 150px);
-        }
-        
-        .grid-zoom-container[data-columns="1"] .page-card:hover { 
-            transform: translateY(-4px); 
-        }
-        
-        /* Responsive height adjustments */
-        @media (max-height: 700px) {
-            .page-card { max-height: calc(100vh - 150px); }
-        }
-        @media (max-height: 600px) {
-            .page-card { max-height: calc(100vh - 120px); }
-        }
+        @media (max-height: 700px) { .page-card { max-height: calc(100vh - 150px); } }
+        @media (max-height: 600px) { .page-card { max-height: calc(100vh - 120px); } }
 
         /* Sortable Styles */
         .sortable-ghost { opacity: 0.8; background: linear-gradient(135deg, #6366f115 0%, #818cf815 100%); border: 2px solid #6366f1; border-radius: 0.75rem; transform: scale(1.08); z-index: 1000; }
         .sortable-drag { background: white; transform: scale(1.12) translateY(-2px); z-index: 1000; filter: brightness(1.15); }
         .page-card.dragging { transition: all 0.08s !important; }
-        
-        /* Dark mode overrides */
         .dark .page-card.bg-white { background-color: #1e293b; }
 
-        /* ✅ NEW: Floating Toolbar Margin Fix */
-        #floatingToolbar {
-            margin: 0 1rem; /* Keep within bounds */
-        }
-
-        /* ✅ NEW: Prevent any horizontal overflow */
-        .overflow-safe {
-            overflow-x-hidden !important;
-        }
+        #floatingToolbar { margin: 0 1rem; }
+        .overflow-safe { overflow-x-hidden !important; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-slate-700 bg-slate-50 dark:bg-darkSurface dark:text-slate-300 transition-colors duration-300 overflow-x-hidden">
@@ -328,8 +264,6 @@
             </div>
             <div class="flex items-center gap-4">
                 <div id="statusBadges" class="flex gap-2"></div>
-                
-                <!-- Zoom Controls -->
                 <div class="zoom-controls">
                     <i class="fas fa-th zoom-icon" id="zoomOutIcon" title="網格檢視"></i>
                     <div class="slider-container">
@@ -347,49 +281,27 @@
             <div id="gridContainer" class="grid-zoom-container" style="--col-count: 3" data-columns="3"></div>
         </div>
 
-        <!-- NEW Floating Toolbar -->
+        <!-- Floating Toolbar -->
         <div id="floatingToolbar" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-[#2B3245] text-white px-4 py-2.5 rounded-full shadow-2xl border border-white/10 hidden items-center gap-3 z-50 transition-all duration-300 animate-slide-up ring-1 ring-black/20">
-            
-            <!-- Rotation Group -->
             <div class="flex items-center gap-1">
-                <button onclick="rotateSelected(-90)" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="向左旋轉 90°">
-                    <i class="fa-solid fa-rotate-left text-lg"></i>
-                </button>
-                <button onclick="rotateSelected(90)" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="向右旋轉 90°">
-                    <i class="fa-solid fa-rotate-right text-lg"></i>
-                </button>
+                <button onclick="rotateSelected(-90)" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="向左旋轉 90°"><i class="fa-solid fa-rotate-left text-lg"></i></button>
+                <button onclick="rotateSelected(90)" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="向右旋轉 90°"><i class="fa-solid fa-rotate-right text-lg"></i></button>
             </div>
-
-            <!-- Divider -->
             <div class="w-px h-6 bg-white/20 mx-1"></div>
-
-            <!-- Edit Group -->
             <div class="flex items-center gap-1">
-                <button onclick="addBlankPage()" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="新增頁面">
-                    <i class="fa-regular fa-square-plus text-xl"></i>
-                </button>
-                <button onclick="copySelected()" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="複製頁面">
-                    <i class="fa-regular fa-copy text-lg"></i>
-                </button>
-                <button id="pasteBtn" onclick="pastePages()" disabled class="w-10 h-10 flex items-center justify-center hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent rounded-full transition text-slate-200 hover:text-white" title="貼上頁面">
-                    <i class="fa-regular fa-paste text-lg"></i>
-                </button>
+                <button onclick="addBlankPage()" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="新增頁面"><i class="fa-regular fa-square-plus text-xl"></i></button>
+                <button onclick="copySelected()" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition text-slate-200 hover:text-white" title="複製頁面"><i class="fa-regular fa-copy text-lg"></i></button>
+                <button id="pasteBtn" onclick="pastePages()" disabled class="w-10 h-10 flex items-center justify-center hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent rounded-full transition text-slate-200 hover:text-white" title="貼上頁面"><i class="fa-regular fa-paste text-lg"></i></button>
             </div>
-
-            <!-- Divider -->
             <div class="w-px h-6 bg-white/20 mx-1"></div>
-
-            <!-- Delete Group -->
             <div>
-                <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-full transition" title="刪除所選">
-                    <i class="fa-solid fa-trash-can text-lg"></i>
-                </button>
+                <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-full transition" title="刪除所選"><i class="fa-solid fa-trash-can text-lg"></i></button>
             </div>
         </div>
 
     </main>
 
-    <!-- Modals & Toasts -->
+    <!-- Modals -->
     <div id="pageNumberModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <h3 class="font-bold text-lg dark:text-white">頁碼設定</h3>
@@ -438,10 +350,10 @@
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-lg opacity-0 pointer-events-none z-[100] transition-opacity duration-300"></div>
 
     <script>
-        // --- Global State (Flat & Simple) ---
-        let fileStore = {}; // { id: { type: 'pdf'|'image', name, data, pdfDoc } }
-        let fileManifest = []; // [docId1, docId2...] for Reset
-        let pages = [];     // { id, fileId, pageIndex, rotation, type }
+        // --- Global State ---
+        let fileStore = {}; // { id: { type: 'pdf'|'image', name, data, pdfDoc, mime } }
+        let fileManifest = [];
+        let pages = []; // { id, fileId, pageIndex, rotation, type }
         let selectedIds = new Set();
         let clipboard = [];
         let history = [];
@@ -471,28 +383,186 @@
             4: { cols: 1, label: "閱讀模式" }
         };
 
-        // ✅ NEW: Viewport-Aware Scaling Function
+        // --- EXPORT FUNCTIONALITY (Added) ---
+        async function exportFile(type) {
+            if (pages.length === 0) return showToast("沒有頁面可匯出", true);
+            showLoading(true, "正在處理匯出...");
+            
+            try {
+                if (type === 'pdf') {
+                    // Create new PDF
+                    const newPdf = await PDFLib.PDFDocument.create();
+                    
+                    // Add Metadata
+                    if (metaConfig) {
+                        newPdf.setTitle(metaConfig.title || '');
+                        newPdf.setAuthor(metaConfig.author || '');
+                    } else {
+                         newPdf.setCreator('PDF Organizer Pro');
+                    }
+
+                    // Process pages
+                    for (let i = 0; i < pages.length; i++) {
+                        const p = pages[i];
+                        let page;
+
+                        if (p.type === 'blank') {
+                            page = newPdf.addPage();
+                        } else if (p.type === 'pdf') {
+                            const srcFile = fileStore[p.fileId];
+                            if (!srcFile) continue;
+                            const srcDoc = await PDFLib.PDFDocument.load(srcFile.data);
+                            const [copiedPage] = await newPdf.copyPages(srcDoc, [p.pageIndex]);
+                            page = newPdf.addPage(copiedPage);
+                        } else if (p.type === 'image') {
+                            const srcFile = fileStore[p.fileId];
+                            if (!srcFile) continue;
+                            let image;
+                            if (srcFile.mime === 'image/jpeg') image = await newPdf.embedJpg(srcFile.data);
+                            else if (srcFile.mime === 'image/png') image = await newPdf.embedPng(srcFile.data);
+                            
+                            if (image) {
+                                page = newPdf.addPage([image.width, image.height]);
+                                page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+                            }
+                        }
+
+                        // Apply Rotation
+                        if (page) {
+                            const currentRotation = page.getRotation().angle;
+                            page.setRotation(PDFLib.degrees(currentRotation + p.rotation));
+
+                            // Apply Watermark
+                            if (wmConfig) {
+                                const { width, height } = page.getSize();
+                                const colorHex = wmConfig.color;
+                                const r = parseInt(colorHex.slice(1, 3), 16) / 255;
+                                const g = parseInt(colorHex.slice(3, 5), 16) / 255;
+                                const b = parseInt(colorHex.slice(5, 7), 16) / 255;
+                                
+                                page.drawText(wmConfig.text, {
+                                    x: width / 2 - (wmConfig.text.length * 15),
+                                    y: height / 2,
+                                    size: 50,
+                                    color: PDFLib.rgb(r, g, b),
+                                    opacity: wmConfig.opacity,
+                                    rotate: PDFLib.degrees(45),
+                                });
+                            }
+
+                            // Apply Page Numbers
+                            if (pgNumConfig) {
+                                const { width } = page.getSize();
+                                const text = `${pgNumConfig.start + i}`;
+                                const fontSize = pgNumConfig.size || 12;
+                                let x = 20;
+                                if (pgNumConfig.pos === 'bottom-center') x = width / 2;
+                                else if (pgNumConfig.pos === 'bottom-right') x = width - 40;
+                                
+                                page.drawText(text, {
+                                    x: x,
+                                    y: 20,
+                                    size: fontSize,
+                                    color: PDFLib.rgb(0, 0, 0),
+                                });
+                            }
+                        }
+                    }
+
+                    const pdfBytes = await newPdf.save();
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                    saveAs(blob, `${fileName || 'merged'}.pdf`);
+                    
+                } else if (type === 'zip' || type === 'images') {
+                    const zip = new JSZip();
+                    const folder = zip.folder(fileName || "files");
+
+                    for (let i = 0; i < pages.length; i++) {
+                        const p = pages[i];
+                        const name = `page_${(i + 1).toString().padStart(3, '0')}`;
+                        
+                        if (p.type === 'pdf') {
+                            if (type === 'zip') {
+                                // Extract single page PDF
+                                const srcFile = fileStore[p.fileId];
+                                const singleDoc = await PDFLib.PDFDocument.create();
+                                const srcDoc = await PDFLib.PDFDocument.load(srcFile.data);
+                                const [copiedPage] = await singleDoc.copyPages(srcDoc, [p.pageIndex]);
+                                const page = singleDoc.addPage(copiedPage);
+                                page.setRotation(PDFLib.degrees(page.getRotation().angle + p.rotation));
+                                const bytes = await singleDoc.save();
+                                folder.file(`${name}.pdf`, bytes);
+                            } else {
+                                // Convert to Image (Canvas -> Blob)
+                                const blob = await renderPageToBlob(p);
+                                if (blob) folder.file(`${name}.jpg`, blob);
+                            }
+                        } else if (p.type === 'image') {
+                            const srcFile = fileStore[p.fileId];
+                            const ext = srcFile.mime.split('/')[1];
+                            folder.file(`${name}.${ext}`, srcFile.data);
+                        }
+                    }
+                    
+                    const content = await zip.generateAsync({ type: "blob" });
+                    saveAs(content, `${fileName || 'files'}.zip`);
+                    
+                } else if (type === 'text') {
+                    let fullText = "";
+                    for (let p of pages) {
+                        if (p.type === 'pdf') {
+                             const srcFile = fileStore[p.fileId];
+                             const loadingTask = pdfjsLib.getDocument({data: srcFile.data.slice(0)});
+                             const pdf = await loadingTask.promise;
+                             const page = await pdf.getPage(p.pageIndex + 1);
+                             const textContent = await page.getTextContent();
+                             const pageText = textContent.items.map(item => item.str).join(' ');
+                             fullText += `--- Page ${pages.indexOf(p) + 1} ---\n${pageText}\n\n`;
+                        }
+                    }
+                    const blob = new Blob([fullText], { type: "text/plain;charset=utf-8" });
+                    saveAs(blob, `${fileName || 'document'}.txt`);
+                }
+
+                showToast("匯出成功！");
+            } catch (error) {
+                console.error(error);
+                showToast("匯出失敗: " + error.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Helper: Render single page to high-res blob for image export
+        async function renderPageToBlob(p) {
+            if (p.type !== 'pdf') return null;
+            const srcFile = fileStore[p.fileId];
+            const loadingTask = pdfjsLib.getDocument({data: srcFile.data.slice(0)});
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(p.pageIndex + 1);
+            
+            const scale = 2.0; // High quality
+            const viewport = page.getViewport({ scale: scale, rotation: p.rotation });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+            
+            return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+        }
+
+        // --- Core Functions ---
         function getOptimalScale() {
             const viewportHeight = window.innerHeight;
-            const viewportWidth = window.innerWidth;
             const columns = parseInt(gridContainer.getAttribute('data-columns') || 3);
-            
-            let scale = 0.5; // default
-            
-            if (columns === 1) {
-                // Reading mode: larger, but fit in viewport
-                scale = Math.min(1.8, viewportHeight / 850);
-            } else if (columns === 2) {
-                scale = Math.min(0.9, viewportHeight / 600);
-            } else if (columns === 3) {
-                scale = Math.min(0.6, viewportHeight / 500);
-            } else if (columns === 4) {
-                scale = Math.min(0.45, viewportHeight / 450);
-            } else if (columns === 5) {
-                scale = Math.min(0.35, viewportHeight / 400);
-            }
-            
-            return Math.max(scale, 0.25); // minimum readability
+            let scale = 0.5;
+            if (columns === 1) scale = Math.min(1.8, viewportHeight / 850);
+            else if (columns === 2) scale = Math.min(0.9, viewportHeight / 600);
+            else if (columns === 3) scale = Math.min(0.6, viewportHeight / 500);
+            else if (columns === 4) scale = Math.min(0.45, viewportHeight / 450);
+            else if (columns === 5) scale = Math.min(0.35, viewportHeight / 400);
+            return Math.max(scale, 0.25);
         }
 
         function getMostVisiblePage() {
@@ -526,7 +596,6 @@
             }
         }
 
-        // **Smart Pre-rendering on Scroll**
         let scrollTimeout;
         gridWrapper.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
@@ -541,11 +610,9 @@
 
             const visibleCards = Array.from(cards).filter(card => {
                 const rect = card.getBoundingClientRect();
-                return rect.bottom > viewportRect.top - buffer && 
-                       rect.top < viewportRect.bottom + buffer;
+                return rect.bottom > viewportRect.top - buffer && rect.top < viewportRect.bottom + buffer;
             });
 
-            // 分批渲染避免卡顿
             visibleCards.forEach((card, i) => {
                 setTimeout(() => {
                     const pageId = card.dataset.id;
@@ -563,18 +630,10 @@
                 gridContainer.style.setProperty('--col-count', config.cols);
                 gridContainer.setAttribute('data-columns', config.cols);
                 updateZoomIndicators(val);
-                if (anchorPage) {
-                    setTimeout(() => {
-                        anchorPage.scrollIntoView({ behavior: 'auto', block: 'center' });
-                    }, 0);
-                }
-                // ✅ Re-render thumbnails after zoom change
+                if (anchorPage) setTimeout(() => anchorPage.scrollIntoView({ behavior: 'auto', block: 'center' }), 0);
                 setTimeout(reRenderVisibleThumbnails, 100);
             });
-            zoomSlider.addEventListener('change', () => {
-                setTimeout(reRenderVisibleThumbnails, 100);
-            });
-            
+            zoomSlider.addEventListener('change', () => setTimeout(reRenderVisibleThumbnails, 100));
             gridWrapper.addEventListener('wheel', (e) => {
                 if (e.ctrlKey) {
                     e.preventDefault();
@@ -584,14 +643,11 @@
                     if (newVal !== currentVal) {
                         zoomSlider.value = newVal;
                         zoomSlider.dispatchEvent(new Event('input'));
-                        clearTimeout(window.wheelZoomTimeout);
-                        window.wheelZoomTimeout = setTimeout(reRenderVisibleThumbnails, 300);
                     }
                 }
             }, { passive: false });
         }
 
-        // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
             if (typeof pdfjsLib !== 'undefined') {
                 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -604,39 +660,24 @@
             const isFile = e => e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files');
 
             window.addEventListener('dragenter', e => {
-                if(isFile(e)) {
-                    e.preventDefault(); 
-                    dragCounter++; 
-                    dropOverlay.classList.remove('hidden'); 
-                    setTimeout(() => dropOverlay.classList.remove('opacity-0'), 10); 
-                }
+                if(isFile(e)) { e.preventDefault(); dragCounter++; dropOverlay.classList.remove('hidden'); setTimeout(() => dropOverlay.classList.remove('opacity-0'), 10); }
             });
             window.addEventListener('dragleave', e => {
-                if(isFile(e)) {
-                    e.preventDefault(); 
-                    dragCounter--; 
-                    if(dragCounter === 0) { 
-                        dropOverlay.classList.add('opacity-0'); 
-                        setTimeout(() => dropOverlay.classList.add('hidden'), 200); 
-                    } 
-                }
+                if(isFile(e)) { e.preventDefault(); dragCounter--; if(dragCounter === 0) { dropOverlay.classList.add('opacity-0'); setTimeout(() => dropOverlay.classList.add('hidden'), 200); } }
             });
             window.addEventListener('dragover', e => { if(isFile(e)) e.preventDefault(); });
             window.addEventListener('drop', e => {
                 if(isFile(e)) {
-                    e.preventDefault(); 
-                    dragCounter = 0; 
-                    dropOverlay.classList.add('opacity-0');
-                    setTimeout(() => dropOverlay.classList.add('hidden'), 200);
+                    e.preventDefault(); dragCounter = 0; 
+                    dropOverlay.classList.add('opacity-0'); setTimeout(() => dropOverlay.classList.add('hidden'), 200);
                     handleFiles(e.dataTransfer.files);
                 }
             });
 
             document.addEventListener('click', (e) => {
                 const exportGroup = document.getElementById('exportBtnGroup');
-                if (exportGroup && !exportGroup.contains(e.target)) { toggleExportDropdown(false); }
+                if (exportGroup && !exportGroup.contains(e.target)) toggleExportDropdown(false);
             });
-
             document.addEventListener('keydown', handleKeys);
             document.getElementById('gridWrapper').addEventListener('click', (e) => { 
                 if(e.target.id === 'gridWrapper' || e.target.id === 'gridContainer') deselectAll(); 
@@ -652,22 +693,11 @@
         function initSortable() {
             if(sortableInstance) sortableInstance.destroy();
             sortableInstance = new Sortable(gridContainer, {
-                animation: 250, 
-                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', 
-                ghostClass: 'sortable-ghost', 
-                dragClass: 'sortable-drag', 
-                chosenClass: 'sortable-chosen', 
-                dragoverBubble: false, 
-                handle: '.page-card', 
-                forceFallback: false, 
-                fallbackTolerance: 0,
-                onStart: function(evt) { 
-                    evt.item.style.transition = 'all 0.1s cubic-bezier(0.34, 1.56, 0.64, 1)'; 
-                },
-                onChoose: function(evt) { 
-                    evt.item.classList.add('dragging'); 
-                    evt.item.style.transition = 'all 0.08s cubic-bezier(0.34, 1.56, 0.64, 1)'; 
-                },
+                animation: 250, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', 
+                ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', 
+                handle: '.page-card',
+                onStart: function(evt) { evt.item.style.transition = 'all 0.1s cubic-bezier(0.34, 1.56, 0.64, 1)'; },
+                onChoose: function(evt) { evt.item.classList.add('dragging'); evt.item.style.transition = 'all 0.08s cubic-bezier(0.34, 1.56, 0.64, 1)'; },
                 onEnd: function(evt) {
                     evt.item.classList.remove('dragging');
                     evt.item.style.transition = 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease-out, filter 0.15s ease-out';
@@ -676,18 +706,15 @@
                         const item = pages.splice(evt.oldIndex, 1)[0];
                         pages.splice(evt.newIndex, 0, item);
                         updateAllPageNumbers();
-                        showToast(`頁面已移動到位置 ${evt.newIndex + 1}`);
                     }
                 },
-                onMove: function(evt, originalEvent) {
+                onMove: function(evt) {
                     if (evt.related && evt.related.classList.contains('page-card')) {
                         evt.related.style.transition = 'box-shadow 0.1s ease-out, filter 0.1s ease-out';
                         evt.related.style.boxShadow = '0 0 0 4px rgba(99, 102, 241, 0.4)';
                         evt.related.style.filter = 'brightness(1.05)';
                     }
-                    if (evt.dragged) { 
-                        evt.dragged.style.transition = 'all 0.08s cubic-bezier(0.34, 1.56, 0.64, 1)'; 
-                    }
+                    if (evt.dragged) evt.dragged.style.transition = 'all 0.08s cubic-bezier(0.34, 1.56, 0.64, 1)'; 
                     return true;
                 },
                 onLeave: function(evt) {
@@ -700,14 +727,10 @@
             });
         }
 
-        // ✅ 新增：更新所有页面序号
         function updateAllPageNumbers() {
-            const container = gridContainer;
-            Array.from(container.children).forEach((child, index) => {
+            Array.from(gridContainer.children).forEach((child, index) => {
                 const pageNumberSpan = child.querySelector('span:first-child');
-                if (pageNumberSpan) {
-                    pageNumberSpan.textContent = `Pg ${index + 1}`;
-                }
+                if (pageNumberSpan) pageNumberSpan.textContent = `Pg ${index + 1}`;
             });
             updateSelectionStates();
         }
@@ -734,7 +757,6 @@
                     }
                 }
 
-                // ✅ 安全处理文件名
                 if (fileList.length > 0 && fileName === 'merged_document') {
                     fileName = fileList[0].name.split('.').slice(0, -1).join('.');
                     document.getElementById('fileNameInput').value = fileName;
@@ -772,8 +794,6 @@
                 selectedIds.clear();
                 zoomSlider.value = "2";
                 updateZoomIndicators(2);
-                gridContainer.style.setProperty('--col-count', 3);
-                gridContainer.setAttribute('data-columns', 3);
                 renderGrid(true); 
                 updateUI();
                 showToast("已重置");
@@ -808,7 +828,6 @@
             return el;
         }
 
-        // ✅ ENHANCED: Viewport-Aware Thumbnail Rendering
         async function renderThumbnail(p, forceHighQuality = false) {
             const cvs = document.getElementById(`cvs-${p.id}`);
             if (!cvs || p.type === 'blank') return;
@@ -816,10 +835,7 @@
             if (!file) return;
 
             try {
-                // ✅ Use dynamic scaling based on viewport and columns
                 const scale = getOptimalScale();
-                
-                // Cache key includes dynamic scale
                 const renderKey = `${p.fileId}-${p.pageIndex}-${scale}-${p.rotation}-${p.type}`;
                 if (cvs.dataset.lastRender === renderKey && !forceHighQuality) return;
 
@@ -829,29 +845,23 @@
                 if (p.type === 'pdf') {
                     const page = await file.pdfDoc.getPage(p.pageIndex + 1);
                     const viewport = page.getViewport({ scale: scale, rotation: p.rotation });
-                    
-                    // ✅ Ensure canvas fits in container
                     const columns = parseInt(gridContainer.getAttribute('data-columns') || 3);
                     const maxWidth = (gridWrapper.clientWidth - 48) / columns - 20;
                     const maxHeight = window.innerHeight - 200;
                     
-                    let finalWidth = viewport.width;
-                    let finalHeight = viewport.height;
+                    let finalWidth = viewport.width, finalHeight = viewport.height;
                     
                     if (finalWidth > maxWidth) {
                         const ratio = maxWidth / finalWidth;
-                        finalWidth *= ratio;
-                        finalHeight *= ratio;
+                        finalWidth *= ratio; finalHeight *= ratio;
                     }
                     if (finalHeight > maxHeight) {
                         const ratio = maxHeight / finalHeight;
-                        finalWidth *= ratio;
-                        finalHeight *= ratio;
+                        finalWidth *= ratio; finalHeight *= ratio;
                     }
                     
                     cvs.width = finalWidth;
                     cvs.height = finalHeight;
-                    
                     const renderViewport = page.getViewport({ scale: scale * (finalWidth / viewport.width), rotation: p.rotation });
                     await page.render({ canvasContext: ctx, viewport: renderViewport }).promise;
                     
@@ -863,22 +873,17 @@
                     await new Promise((resolve, reject) => {
                         img.onload = () => {
                             URL.revokeObjectURL(img.src);
-                            
                             const columns = parseInt(gridContainer.getAttribute('data-columns') || 3);
                             const maxWidth = (gridWrapper.clientWidth - 48) / columns - 20;
                             const maxHeight = window.innerHeight - 200;
                             
-                            let finalWidth = img.width * scale;
-                            let finalHeight = img.height * scale;
+                            let finalWidth = img.width * scale, finalHeight = img.height * scale;
                             
-                            if (p.rotation % 180 !== 0) {
-                                [finalWidth, finalHeight] = [finalHeight, finalWidth];
-                            }
+                            if (p.rotation % 180 !== 0) [finalWidth, finalHeight] = [finalHeight, finalWidth];
                             
                             if (finalWidth > maxWidth || finalHeight > maxHeight) {
                                 const ratio = Math.min(maxWidth / finalWidth, maxHeight / finalHeight);
-                                finalWidth *= ratio;
-                                finalHeight *= ratio;
+                                finalWidth *= ratio; finalHeight *= ratio;
                             }
                             
                             cvs.width = finalWidth;
@@ -888,26 +893,15 @@
                             ctx.translate(cvs.width / 2, cvs.height / 2);
                             ctx.rotate(p.rotation * Math.PI / 180);
                             ctx.drawImage(img, -finalWidth / 2, -finalHeight / 2, finalWidth, finalHeight);
-                            
                             resolve();
                         };
                         img.onerror = reject;
                         setTimeout(reject, 3000);
                     });
                 }
-                
                 cvs.dataset.lastRender = renderKey;
-
             } catch (e) {
-                console.warn(`Failed to render page ${p.id}:`, e);
-                const ctx = cvs.getContext('2d');
-                ctx.fillStyle = '#f1f5f9';
-                ctx.fillRect(0, 0, 100, 140);
-                ctx.fillStyle = '#64748b';
-                ctx.font = 'bold 12px Inter';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(p.type === 'pdf' ? 'PDF' : 'IMG', 50, 70);
+                console.warn(`Render failed for ${p.id}`, e);
             }
         }
 
@@ -917,82 +911,47 @@
             updateSelectionStates();
             updateUI();
             const index = pages.findIndex(p => p.id === id);
-            if (index !== -1) { renderNeighborhood(index); }
-            
-            // ✅ 安全调用震动
-            if (navigator.vibrate && 'vibrate' in navigator) {
-                navigator.vibrate(50);
+            if (index !== -1) { 
+                [index - 1, index, index + 1].forEach(i => {
+                    if (pages[i]) setTimeout(() => renderThumbnail(pages[i], true), 10);
+                });
             }
-        }
-        
-        function renderNeighborhood(index) {
-            const targets = [index - 1, index, index + 1];
-            targets.forEach(i => {
-                if (pages[i]) { 
-                    setTimeout(() => renderThumbnail(pages[i], true), 10); 
-                }
-            });
+            if (navigator.vibrate) navigator.vibrate(50);
         }
         
         function updateSelectionStates() {
-            const container = gridContainer;
-            const cards = container.children;
+            const cards = gridContainer.children;
             for (let i = 0; i < cards.length; i++) {
                 const card = cards[i];
-                const pageId = card.dataset.id;
-                const isSel = selectedIds.has(pageId);
+                const isSel = selectedIds.has(card.dataset.id);
                 if (isSel) {
                     card.classList.add('border-brand', 'ring-2', 'ring-brand/20');
                     card.classList.remove('border-transparent', 'hover:border-indigo-200');
-                    const checkmark = card.querySelector('.fa-check');
-                    if (checkmark) checkmark.classList.remove('opacity-0');
+                    card.querySelector('.fa-check').classList.remove('opacity-0');
                 } else {
                     card.classList.remove('border-brand', 'ring-2', 'ring-brand/20');
                     card.classList.add('border-transparent', 'hover:border-indigo-200');
-                    const checkmark = card.querySelector('.fa-check');
-                    if (checkmark) checkmark.classList.add('opacity-0');
+                    card.querySelector('.fa-check').classList.add('opacity-0');
                 }
             }
         }
         
-        function selectAll() { 
-            pages.forEach(p => selectedIds.add(p.id)); 
-            updateSelectionStates(); 
-            updateUI(); 
-            showToast(`已選擇 ${pages.length} 項`); 
-        }
-        
-        function deselectAll() { 
-            selectedIds.clear(); 
-            updateSelectionStates(); 
-            updateUI(); 
-        }
+        function selectAll() { pages.forEach(p => selectedIds.add(p.id)); updateSelectionStates(); updateUI(); showToast(`已選擇 ${pages.length} 項`); }
+        function deselectAll() { selectedIds.clear(); updateSelectionStates(); updateUI(); }
         
         function rotateAll(angle) { 
             if (!pages.length) return; 
             recordHistory(); 
             pages.forEach(p => p.rotation = (p.rotation + angle) % 360); 
-            updateRotationStates(); 
+            pages.forEach(p => renderThumbnail(p));
             showToast(`全部旋轉 ${angle}°`);
         }
         
         function rotateSelected(angle) { 
             if (!selectedIds.size) return; 
             recordHistory(); 
-            pages.forEach(p => { 
-                if(selectedIds.has(p.id)) p.rotation = (p.rotation + angle) % 360; 
-            }); 
-            updateRotationStates(); 
+            pages.forEach(p => { if(selectedIds.has(p.id)) { p.rotation = (p.rotation + angle) % 360; renderThumbnail(p); } }); 
             showToast(`旋轉 ${selectedIds.size} 項`);
-        }
-        
-        function updateRotationStates() { 
-            updateAllPageNumbers(); 
-            pages.forEach(p => { 
-                if(selectedIds.size === 0 || selectedIds.has(p.id)) { 
-                    renderThumbnail(p); 
-                } 
-            }); 
         }
         
         function deleteSelected() { 
@@ -1001,16 +960,14 @@
             const deletedCount = selectedIds.size;
             pages = pages.filter(p => !selectedIds.has(p.id)); 
             selectedIds.clear(); 
-            renderGrid(true); 
-            updateUI(); 
+            renderGrid(true); updateUI(); 
             showToast(`已刪除 ${deletedCount} 項`);
         }
         
         function addBlankPage() { 
             recordHistory(); 
             pages.push({ id: crypto.randomUUID(), type: 'blank', rotation: 0 }); 
-            renderGrid(true); 
-            updateUI(); 
+            renderGrid(true); updateUI(); 
             showToast("已新增空白頁");
         }
         
@@ -1022,61 +979,23 @@
         }
         
         function pastePages() { 
-    if (!clipboard.length) return; 
-    recordHistory(); 
-    
-    // 找出當前選中的頁面位置
-    const selectedIndices = [];
-    pages.forEach((p, index) => {
-        if (selectedIds.has(p.id)) {
-            selectedIndices.push(index);
-        }
-    });
-    
-    // 如果有選中的頁面，插入到最後一個選中頁面之後
-    // 如果沒有選中的頁面，插入到開頭
-    let insertIndex;
-    if (selectedIndices.length > 0) {
-        insertIndex = Math.max(...selectedIndices) + 1;
-    } else {
-        insertIndex = 0;
-    }
-    
-    // 創建新的項目
-    const newItems = clipboard.map(p => ({...p, id: crypto.randomUUID()}));
-    
-    // 使用 splice 插入到指定位置
-    pages.splice(insertIndex, 0, ...newItems);
-    
-    // 清除選擇並選擇新貼上的頁面
-    selectedIds.clear();
-    newItems.forEach(item => selectedIds.add(item.id));
-    
-    renderGrid(true); 
-    updateUI(); 
-    updateSelectionStates();
-    showToast(`已貼上 ${newItems.length} 項`);
-}
-        
-        function reverseOrder() { 
+            if (!clipboard.length) return; 
             recordHistory(); 
-            pages.reverse(); 
-            updateAllPageNumbers(); 
-            showToast("順序已反轉");
+            const selectedIndices = [];
+            pages.forEach((p, index) => { if (selectedIds.has(p.id)) selectedIndices.push(index); });
+            let insertIndex = selectedIndices.length > 0 ? Math.max(...selectedIndices) + 1 : 0;
+            const newItems = clipboard.map(p => ({...p, id: crypto.randomUUID()}));
+            pages.splice(insertIndex, 0, ...newItems);
+            selectedIds.clear(); newItems.forEach(item => selectedIds.add(item.id));
+            renderGrid(true); updateUI(); showToast(`已貼上 ${newItems.length} 項`);
         }
+        
+        function reverseOrder() { recordHistory(); pages.reverse(); updateAllPageNumbers(); showToast("順序已反轉"); }
         
         function closeAllFiles() { 
             if(confirm("關閉所有文件？")) { 
-                pages = []; 
-                fileStore = {}; 
-                fileManifest = []; 
-                selectedIds.clear(); 
-                history = []; 
-                renderGrid(true); 
-                zoomSlider.value = "2"; 
-                updateZoomIndicators(2); 
-                zoomSlider.dispatchEvent(new Event('input'));
-                updateUI(); 
+                pages = []; fileStore = {}; fileManifest = []; selectedIds.clear(); history = []; 
+                renderGrid(true); zoomSlider.value = "2"; updateZoomIndicators(2); updateUI(); 
                 showToast("已關閉所有文件");
             } 
         }
@@ -1088,25 +1007,8 @@
             updateUndoRedoButtons();
         }
         
-        function undo() { 
-            if(historyIndex >= 0) { 
-                pages = history[historyIndex]; 
-                historyIndex--; 
-                renderGrid(true); 
-                updateUI(); 
-                showToast("已復原"); 
-            } 
-        }
-        
-        function redo() { 
-            if(historyIndex < history.length - 1) { 
-                historyIndex++; 
-                pages = history[historyIndex]; 
-                renderGrid(true); 
-                updateUI(); 
-                showToast("已重做"); 
-            } 
-        }
+        function undo() { if(historyIndex >= 0) { pages = history[historyIndex]; historyIndex--; renderGrid(true); updateUI(); showToast("已復原"); } }
+        function redo() { if(historyIndex < history.length - 1) { historyIndex++; pages = history[historyIndex]; renderGrid(true); updateUI(); showToast("已重做"); } }
         
         function updateUndoRedoButtons() { 
             document.getElementById('btnUndo').disabled = historyIndex < 0; 
@@ -1125,29 +1027,17 @@
             const title = document.getElementById('appTitle');
             const floatBar = document.getElementById('floatingToolbar');
 
-            if (hasPages) {
-                empty.style.display = 'none';
-                main.classList.remove('hidden');
-                grid.classList.remove('hidden');
-                info.classList.remove('hidden');
-                info.classList.add('flex');
-                addLabel.innerText = "新增檔案";
-                exportGrp.classList.remove('hidden');
-                settGrp.classList.remove('hidden');
-                title.classList.add('hidden');
-                document.getElementById('pageCountDisplay').innerText = `${pages.length} 頁`;
-            } else {
-                empty.style.display = 'flex';
-                main.classList.add('hidden');
-                grid.classList.add('hidden');
-                info.classList.add('hidden');
-                info.classList.remove('flex');
-                addLabel.innerText = "開啟 PDF";
-                exportGrp.classList.add('hidden');
-                settGrp.classList.add('hidden');
-                title.classList.remove('hidden');
-            }
+            empty.style.display = hasPages ? 'none' : 'flex';
+            main.classList.toggle('hidden', !hasPages);
+            grid.classList.toggle('hidden', !hasPages);
+            info.classList.toggle('hidden', !hasPages);
+            info.classList.toggle('flex', hasPages);
+            addLabel.innerText = hasPages ? "新增檔案" : "開啟 PDF";
+            exportGrp.classList.toggle('hidden', !hasPages);
+            settGrp.classList.toggle('hidden', !hasPages);
+            title.classList.toggle('hidden', hasPages);
             
+            document.getElementById('pageCountDisplay').innerText = `${pages.length} 頁`;
             document.getElementById('selectionBadge').innerText = `${selectedIds.size} 選取`;
             document.getElementById('statusBadges').innerText = `${selectedIds.size} 選取`;
 
@@ -1158,9 +1048,7 @@
                 floatBar.classList.add('hidden', 'opacity-0');
                 floatBar.classList.remove('flex', 'opacity-100');
             }
-            
-            const pasteBtn = document.getElementById('pasteBtn');
-            pasteBtn.disabled = clipboard.length === 0;
+            document.getElementById('pasteBtn').disabled = clipboard.length === 0;
         }
 
         function handleKeys(e) {
@@ -1185,28 +1073,18 @@
         function showToast(m, err) { 
             const t = document.getElementById('toast'); 
             t.innerText = m; 
-            t.classList.remove('translate-y-4', 'opacity-0'); 
+            t.classList.remove('translate-y-4', 'opacity-0', 'bg-red-600'); 
             if(err) t.classList.add('bg-red-600'); 
-            else t.classList.remove('bg-red-600');
             setTimeout(() => t.classList.add('translate-y-4', 'opacity-0'), 2000);
         }
         
-        function toggleModal(id) { 
-            document.getElementById(id).classList.toggle('hidden'); 
-        }
+        function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
         
-        function handleBackgroundClick(e) { 
-            if(e.target.id === 'gridWrapper' || e.target.id === 'gridContainer') deselectAll(); 
-        }
-
         function initTheme() {
             const savedTheme = localStorage.getItem('theme');
             const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (savedTheme === 'dark' || (!savedTheme && systemDark)) { 
-                document.documentElement.classList.add('dark'); 
-            } else { 
-                document.documentElement.classList.remove('dark'); 
-            }
+            if (savedTheme === 'dark' || (!savedTheme && systemDark)) document.documentElement.classList.add('dark'); 
+            else document.documentElement.classList.remove('dark'); 
             updateZoomIndicators(parseInt(zoomSlider.value));
         }
         
@@ -1218,11 +1096,8 @@
 
         function setPagePos(p) { 
             document.querySelectorAll('.pn-btn').forEach(b => {
-                if(b.dataset.pos === p) { 
-                    b.classList.add('bg-indigo-50', 'border-indigo-500', 'text-indigo-600'); 
-                } else { 
-                    b.classList.remove('bg-indigo-50', 'border-indigo-500', 'text-indigo-600'); 
-                }
+                if(b.dataset.pos === p) b.classList.add('bg-indigo-50', 'border-indigo-500', 'text-indigo-600'); 
+                else b.classList.remove('bg-indigo-50', 'border-indigo-500', 'text-indigo-600'); 
             });
         }
         
@@ -1235,20 +1110,13 @@
                     size: 12 
                 };
                 showToast("頁碼已設定");
-            } else { 
-                pgNumConfig = null; 
-                showToast("頁碼已移除"); 
-            }
+            } else { pgNumConfig = null; showToast("頁碼已移除"); }
             toggleModal('pageNumberModal');
         }
         
         function saveMeta() {
-            metaConfig = { 
-                title: document.getElementById('metaTitle').value, 
-                author: document.getElementById('metaAuthor').value 
-            };
-            toggleModal('metadataModal'); 
-            showToast("元數據已設定");
+            metaConfig = { title: document.getElementById('metaTitle').value, author: document.getElementById('metaAuthor').value };
+            toggleModal('metadataModal'); showToast("元數據已設定");
         }
         
         function saveWatermark(save) {
@@ -1258,32 +1126,21 @@
                     color: document.getElementById('wmColor').value, 
                     opacity: parseFloat(document.getElementById('wmOpacity').value) 
                 };
-                if(!wmConfig.text) { wmConfig = null; } 
+                if(!wmConfig.text) wmConfig = null; 
                 showToast("浮水印已設定");
-            } else { 
-                wmConfig = null; 
-                showToast("浮水印已移除"); 
-            }
+            } else { wmConfig = null; showToast("浮水印已移除"); }
             toggleModal('watermarkModal');
         }
 
-        // ✅ 初始化 Sortable
         function renderGrid(forceUpdate = false) {
             const container = gridContainer;
-            if (!forceUpdate && container.children.length === pages.length) {
-                updateAllPageNumbers();
-                return;
-            }
-            
+            if (!forceUpdate && container.children.length === pages.length) { updateAllPageNumbers(); return; }
             container.innerHTML = '';
             pages.forEach((p, i) => {
                 const card = createPageCard(p, i);
                 container.appendChild(card);
-                if (p.type !== 'blank') {
-                    setTimeout(() => renderThumbnail(p), 10);
-                }
+                if (p.type !== 'blank') setTimeout(() => renderThumbnail(p), 10);
             });
-            
             initSortable();
             updateAllPageNumbers();
         }
